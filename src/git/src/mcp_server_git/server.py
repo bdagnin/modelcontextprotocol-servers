@@ -21,23 +21,33 @@ DEFAULT_CONTEXT_LINES = 3
 
 class GitStatus(BaseModel):
     repo_path: str
+    paths: Optional[list[str]] = None
 
 class GitDiffUnstaged(BaseModel):
     repo_path: str
     context_lines: int = DEFAULT_CONTEXT_LINES
+    ignore_whitespace: bool = False
+    paths: Optional[list[str]] = None
 
 class GitDiffStaged(BaseModel):
     repo_path: str
     context_lines: int = DEFAULT_CONTEXT_LINES
+    ignore_whitespace: bool = False
+    paths: Optional[list[str]] = None
 
 class GitDiff(BaseModel):
     repo_path: str
     target: str
+    base: Optional[str] = None
     context_lines: int = DEFAULT_CONTEXT_LINES
+    ignore_whitespace: bool = False
+    paths: Optional[list[str]] = None
 
 class GitCommit(BaseModel):
     repo_path: str
     message: str
+    author_name: Optional[str] = None
+    author_email: Optional[str] = None
 
 class GitAdd(BaseModel):
     repo_path: str
@@ -45,10 +55,13 @@ class GitAdd(BaseModel):
 
 class GitReset(BaseModel):
     repo_path: str
+    paths: Optional[list[str]] = None
 
 class GitLog(BaseModel):
     repo_path: str
     max_count: int = 10
+    revision_range: Optional[str] = None
+    paths: Optional[list[str]] = None
     start_timestamp: Optional[str] = Field(
         None,
         description="Start timestamp for filtering commits. Accepts: ISO 8601 format (e.g., '2024-01-15T14:30:25'), relative dates (e.g., '2 weeks ago', 'yesterday'), or absolute dates (e.g., '2024-01-15', 'Jan 15 2024')"
@@ -107,25 +120,61 @@ class GitTools(str, Enum):
 
     BRANCH = "git_branch"
 
-def git_status(repo: git.Repo) -> str:
-    return repo.git.status()
+def git_status(repo: git.Repo, paths: list[str] | None = None) -> str:
+    args = []
+    if paths:
+        args.extend(["--", *paths])
+    return repo.git.status(*args)
 
-def git_diff_unstaged(repo: git.Repo, context_lines: int = DEFAULT_CONTEXT_LINES) -> str:
-    return repo.git.diff(f"--unified={context_lines}")
+def git_diff_unstaged(repo: git.Repo, context_lines: int = DEFAULT_CONTEXT_LINES, ignore_whitespace: bool = False, paths: list[str] | None = None) -> str:
+    args = [f"--unified={context_lines}"]
+    if ignore_whitespace:
+        args.append("-w")
+    if paths:
+        args.extend(["--", *paths])
+    return repo.git.diff(*args)
 
-def git_diff_staged(repo: git.Repo, context_lines: int = DEFAULT_CONTEXT_LINES) -> str:
-    return repo.git.diff(f"--unified={context_lines}", "--cached")
+def git_diff_staged(repo: git.Repo, context_lines: int = DEFAULT_CONTEXT_LINES, ignore_whitespace: bool = False, paths: list[str] | None = None) -> str:
+    args = [f"--unified={context_lines}", "--cached"]
+    if ignore_whitespace:
+        args.append("-w")
+    if paths:
+        args.extend(["--", *paths])
+    return repo.git.diff(*args)
 
-def git_diff(repo: git.Repo, target: str, context_lines: int = DEFAULT_CONTEXT_LINES) -> str:
+def git_diff(repo: git.Repo, target: str, base: str | None = None, context_lines: int = DEFAULT_CONTEXT_LINES, ignore_whitespace: bool = False, paths: list[str] | None = None) -> str:
     # Defense in depth: reject targets starting with '-' to prevent flag injection,
     # even if a malicious ref with that name exists (e.g. via filesystem manipulation)
     if target.startswith("-"):
         raise BadName(f"Invalid target: '{target}' - cannot start with '-'")
+    if base and base.startswith("-"):
+        raise BadName(f"Invalid base: '{base}' - cannot start with '-'")
+    
     repo.rev_parse(target)  # Validates target is a real git ref, throws BadName if not
-    return repo.git.diff(f"--unified={context_lines}", target)
+    if base:
+        repo.rev_parse(base)
 
-def git_commit(repo: git.Repo, message: str) -> str:
-    commit = repo.index.commit(message)
+    args = [f"--unified={context_lines}"]
+    if ignore_whitespace:
+        args.append("-w")
+    
+    if base:
+        args.extend([base, target])
+    else:
+        args.append(target)
+        
+    if paths:
+        args.extend(["--", *paths])
+        
+    return repo.git.diff(*args)
+
+def git_commit(repo: git.Repo, message: str, author_name: str | None = None, author_email: str | None = None) -> str:
+    author = None
+    if author_name and author_email:
+        from git import Actor
+        author = Actor(author_name, author_email)
+
+    commit = repo.index.commit(message, author=author)
     return f"Changes committed successfully with hash {commit.hexsha}"
 
 def git_add(repo: git.Repo, files: list[str]) -> str:
@@ -136,45 +185,34 @@ def git_add(repo: git.Repo, files: list[str]) -> str:
         repo.git.add("--", *files)
     return "Files staged successfully"
 
-def git_reset(repo: git.Repo) -> str:
+def git_reset(repo: git.Repo, paths: list[str] | None = None) -> str:
+    if paths:
+        repo.index.reset(paths=paths)
+        return f"Reset {len(paths)} files"
     repo.index.reset()
     return "All staged changes reset"
 
-def git_log(repo: git.Repo, max_count: int = 10, start_timestamp: Optional[str] = None, end_timestamp: Optional[str] = None) -> list[str]:
-    if start_timestamp or end_timestamp:
-        # Use git log command with date filtering
-        args = []
-        if start_timestamp:
-            args.extend(['--since', start_timestamp])
-        if end_timestamp:
-            args.extend(['--until', end_timestamp])
-        args.extend(['--format=%H%n%an%n%ad%n%s%n'])
-
-        log_output = repo.git.log(*args).split('\n')
-
-        log = []
-        # Process commits in groups of 4 (hash, author, date, message)
-        for i in range(0, len(log_output), 4):
-            if i + 3 < len(log_output) and len(log) < max_count:
-                log.append(
-                    f"Commit: {log_output[i]}\n"
-                    f"Author: {log_output[i+1]}\n"
-                    f"Date: {log_output[i+2]}\n"
-                    f"Message: {log_output[i+3]}\n"
-                )
-        return log
-    else:
-        # Use existing logic for simple log without date filtering
-        commits = list(repo.iter_commits(max_count=max_count))
-        log = []
-        for commit in commits:
-            log.append(
-                f"Commit: {commit.hexsha!r}\n"
-                f"Author: {commit.author!r}\n"
-                f"Date: {commit.authored_datetime}\n"
-                f"Message: {commit.message!r}\n"
-            )
-        return log
+def git_log(repo: git.Repo, max_count: int = 10, revision_range: str | None = None, paths: list[str] | None = None, start_timestamp: str | None = None, end_timestamp: str | None = None) -> list[str]:
+    kwargs = {'max_count': max_count}
+    if start_timestamp:
+        kwargs['since'] = start_timestamp
+    if end_timestamp:
+        kwargs['until'] = end_timestamp
+    if revision_range:
+        kwargs['rev'] = revision_range
+    if paths:
+        kwargs['paths'] = paths
+        
+    commits = list(repo.iter_commits(**kwargs))
+    log = []
+    for commit in commits:
+        log.append(
+            f"Commit: {commit.hexsha!r}\n"
+            f"Author: {commit.author!r}\n"
+            f"Date: {commit.authored_datetime}\n"
+            f"Message: {commit.message!r}\n"
+        )
+    return log
 
 def git_create_branch(repo: git.Repo, branch_name: str, base_branch: str | None = None) -> str:
     if base_branch:
@@ -390,35 +428,57 @@ async def serve(repository: Path | None) -> None:
 
         match name:
             case GitTools.STATUS:
-                status = git_status(repo)
+                status = git_status(repo, arguments.get("paths"))
                 return [TextContent(
                     type="text",
                     text=f"Repository status:\n{status}"
                 )]
 
             case GitTools.DIFF_UNSTAGED:
-                diff = git_diff_unstaged(repo, arguments.get("context_lines", DEFAULT_CONTEXT_LINES))
+                diff = git_diff_unstaged(
+                    repo, 
+                    arguments.get("context_lines", DEFAULT_CONTEXT_LINES),
+                    arguments.get("ignore_whitespace", False),
+                    arguments.get("paths")
+                )
                 return [TextContent(
                     type="text",
                     text=f"Unstaged changes:\n{diff}"
                 )]
 
             case GitTools.DIFF_STAGED:
-                diff = git_diff_staged(repo, arguments.get("context_lines", DEFAULT_CONTEXT_LINES))
+                diff = git_diff_staged(
+                    repo, 
+                    arguments.get("context_lines", DEFAULT_CONTEXT_LINES),
+                    arguments.get("ignore_whitespace", False),
+                    arguments.get("paths")
+                )
                 return [TextContent(
                     type="text",
                     text=f"Staged changes:\n{diff}"
                 )]
 
             case GitTools.DIFF:
-                diff = git_diff(repo, arguments["target"], arguments.get("context_lines", DEFAULT_CONTEXT_LINES))
+                diff = git_diff(
+                    repo, 
+                    arguments["target"], 
+                    arguments.get("base"),
+                    arguments.get("context_lines", DEFAULT_CONTEXT_LINES),
+                    arguments.get("ignore_whitespace", False),
+                    arguments.get("paths")
+                )
                 return [TextContent(
                     type="text",
                     text=f"Diff with {arguments['target']}:\n{diff}"
                 )]
 
             case GitTools.COMMIT:
-                result = git_commit(repo, arguments["message"])
+                result = git_commit(
+                    repo, 
+                    arguments["message"],
+                    arguments.get("author_name"),
+                    arguments.get("author_email")
+                )
                 return [TextContent(
                     type="text",
                     text=result
@@ -432,17 +492,18 @@ async def serve(repository: Path | None) -> None:
                 )]
 
             case GitTools.RESET:
-                result = git_reset(repo)
+                result = git_reset(repo, arguments.get("paths"))
                 return [TextContent(
                     type="text",
                     text=result
                 )]
 
-            # Update the LOG case:
             case GitTools.LOG:
                 log = git_log(
                     repo,
                     arguments.get("max_count", 10),
+                    arguments.get("revision_range"),
+                    arguments.get("paths"),
                     arguments.get("start_timestamp"),
                     arguments.get("end_timestamp")
                 )
