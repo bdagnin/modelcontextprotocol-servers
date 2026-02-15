@@ -1,28 +1,25 @@
 <#
 .SYNOPSIS
-    Builder script that embeds external files into the init-mcp-git.ps1 script.
+    Builder script that compiles the init-mcp-git.ps1 script from template and embedded files.
     
 .DESCRIPTION
     This script reads the init-mcp-git-template.ps1 file and embeds external file resources
-    from the skills/ and .github/prompts/ directories to create a compiled release script.
+    from the skills/ and .github/prompts/ directories to create the init-mcp-git.ps1 script.
     
 .PARAMETER OutputFile
-    The output file path for the compiled script (default: init-mcp-git.out.ps1)
+    The output file path for the compiled script (default: init-mcp-git.ps1)
     
 .EXAMPLE
     .\build-init-script.ps1
     
 .EXAMPLE
-    .\build-init-script.ps1 -OutputFile "release\init-mcp-git.ps1"
+    .\build-init-script.ps1 -OutputFile "init-mcp-git-custom.ps1"
 #>
 
 [CmdletBinding()]
 param(
     [Parameter()]
-    [string]$OutputFile = "init-mcp-git.out.ps1",
-    
-    [Parameter()]
-    [switch]$UpdateMain
+    [string]$OutputFile = "init-mcp-git.ps1"
 )
 
 $ErrorActionPreference = "Stop"
@@ -133,11 +130,3 @@ $outputContent | Out-File -FilePath $OutputFilePath -Encoding utf8 -Force
 
 Write-Host "✓ Build complete: $OutputFilePath" -ForegroundColor Green
 Write-Host "  Embedded $($allFiles.Count) files" -ForegroundColor Gray
-
-# Optionally update main script
-if ($UpdateMain) {
-    $MainScriptPath = Join-Path $ScriptDir "init-mcp-git.ps1"
-    Write-Host "`nUpdating main script: $MainScriptPath" -ForegroundColor Cyan
-    Copy-Item -Path $OutputFilePath -Destination $MainScriptPath -Force
-    Write-Host "✓ Main script updated" -ForegroundColor Green
-}

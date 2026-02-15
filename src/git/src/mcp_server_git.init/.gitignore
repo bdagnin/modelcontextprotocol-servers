@@ -1,2 +1,1 @@
-# Build output
-init-mcp-git.out.ps1
+# No build artifacts to ignore - init-mcp-git.ps1 is the compiled output
