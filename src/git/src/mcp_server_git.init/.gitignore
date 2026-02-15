@@ -1,1 +1,2 @@
-init-mcp-git.ps1
+# Init script is a compiled output that should be committed
+# No build artifacts to ignore
