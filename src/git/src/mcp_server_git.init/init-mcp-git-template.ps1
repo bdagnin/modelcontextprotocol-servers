@@ -28,6 +28,10 @@ param(
     [string]$GitPath,
     
     [Parameter()]
+    [ValidateSet('stable', 'enhanced')]
+    [string]$Channel = 'stable',
+
+    [Parameter()]
     [switch]$Force
 )
 
@@ -36,10 +40,25 @@ $ErrorActionPreference = "Stop"
 # Configuration
 $PythonVersion = $null  # Will be resolved dynamically
 $GitServerDir = Join-Path $InstallDir "mcp-server-git"
+if ($Channel -eq 'enhanced') {
+    $GitServerDir = Join-Path $InstallDir "mcp-server-git-enhanced"
+}
 $PythonDir = Join-Path $GitServerDir "python"
 $PythonExe = Join-Path $PythonDir "python.exe"
 $PipExe = Join-Path $PythonDir "Scripts\pip.exe"
-$GitServerExe = Join-Path $PythonDir "Scripts\mcp-server-git.exe"
+# Start of enhanced mode vars
+$SourceDir = Join-Path $GitServerDir "source"
+$RepoZipUrl = "https://github.com/bdagnin/modelcontextprotocol-servers/archive/refs/heads/main.zip"
+# End of enhanced mode vars
+
+if ($Channel -eq 'stable') {
+    $GitServerExe = Join-Path $PythonDir "Scripts\mcp-server-git.exe"
+} else {
+    # In enhanced mode, we run the module from source, so no exe wrapper
+    # But we might need to install dependencies.
+    # We will point to the source directory in PYTHONPATH later.
+    $GitServerExe = $null 
+}
 
 # <<EMBEDDED_FILES_PLACEHOLDER>>
 
@@ -318,8 +337,9 @@ Write-Host @"
 "@ -ForegroundColor Cyan
 
 # Check if already installed
-if ((Test-Path $GitServerExe) -and -not $Force) {
-    Write-Host "MCP Git Server already installed at: $GitServerExe" -ForegroundColor Yellow
+$InstallCheckPath = if ($Channel -eq 'stable') { $GitServerExe } else { $SourceDir }
+if ((Test-Path $InstallCheckPath) -and -not $Force) {
+    Write-Host "MCP Git Server ($Channel) already installed at: $InstallCheckPath" -ForegroundColor Yellow
     Write-Host "Use -Force to reinstall" -ForegroundColor Yellow
     $response = Read-Host "`nContinue with workspace configuration only? (Y/n)"
     if ($response -and $response -ne 'Y' -and $response -ne 'y') {
@@ -398,18 +418,63 @@ if (-not $SkipInstall) {
     }
 
     # Install mcp-server-git
-    Write-Step "Installing mcp-server-git package"
-    try {
-        & $PythonExe -m pip install mcp-server-git --no-warn-script-location
-        Write-Success "mcp-server-git installed"
-        
-        if (-not (Test-Path $GitServerExe)) {
-            Write-Host "  ✗ mcp-server-git.exe not found after installation" -ForegroundColor Red
+    if ($Channel -eq 'stable') {
+        Write-Step "Installing mcp-server-git package"
+        try {
+            & $PythonExe -m pip install mcp-server-git --no-warn-script-location
+            Write-Success "mcp-server-git installed"
+            
+            if (-not (Test-Path $GitServerExe)) {
+                Write-Host "  ✗ mcp-server-git.exe not found after installation" -ForegroundColor Red
+                exit 1
+            }
+        } catch {
+            Write-Host "  ✗ Failed to install mcp-server-git: $_" -ForegroundColor Red
             exit 1
         }
-    } catch {
-        Write-Host "  ✗ Failed to install mcp-server-git: $_" -ForegroundColor Red
-        exit 1
+    } else {
+        # Enhanced mode: Pull source from GitHub
+        Write-Step "Downloading enhanced source code"
+        $RepoZipPath = Join-Path $GitServerDir "repo.zip"
+        $ExtractDir = Join-Path $GitServerDir "temp_extract"
+        $UnzippedFolder = Join-Path $ExtractDir "modelcontextprotocol-servers-main"
+
+        try {
+            # Download
+            Write-Info "Downloading from: $RepoZipUrl"
+            Invoke-WebRequest -Uri $RepoZipUrl -OutFile $RepoZipPath -UseBasicParsing
+            
+            # Extract
+            if (Test-Path $ExtractDir) { Remove-Item $ExtractDir -Recurse -Force }
+            Expand-Archive -Path $RepoZipPath -DestinationPath $ExtractDir -Force
+            
+            # Locate the extracted root folder (it might not be exactly 'modelcontextprotocol-servers-main', 
+            # so we find the first directory in $ExtractDir)
+            $FoundRoot = Get-ChildItem -Path $ExtractDir -Directory | Select-Object -First 1
+            if (-not $FoundRoot) { throw "No directory found in zip archive" }
+            
+            # Move the content to our target location
+            if (Test-Path $SourceDir) { Remove-Item $SourceDir -Recurse -Force }
+            # Rename the extracted folder to 'source' and move/keep in place
+            Move-Item -Path $FoundRoot.FullName -Destination $SourceDir
+            
+            # Cleanup
+            if (Test-Path $RepoZipPath) { Remove-Item $RepoZipPath -Force }
+            if (Test-Path $ExtractDir) { Remove-Item $ExtractDir -Recurse -Force }
+            
+            Write-Success "Source code downloaded to: $SourceDir"
+            
+            # Install dependencies
+            Write-Step "Installing dependencies"
+            # Dependencies are mcp and gitpython (as per typical mcp requirement)
+            # We install them into the python environment
+            & $PythonExe -m pip install mcp gitpython --no-warn-script-location
+            Write-Success "Dependencies installed (mcp, gitpython)"
+            
+        } catch {
+            Write-Host "  ✗ Failed to setup enhanced mode: $_" -ForegroundColor Red
+            exit 1
+        }
     }
 
     Write-Success "MCP Git Server installation complete!"
@@ -443,15 +508,29 @@ if (-not (Test-Path $vscodeDir)) {
 }
 
 # Create MCP configuration
+if ($Channel -eq 'stable') {
+    $mcpServerConfig = @{
+        command = $GitServerExe
+        env = @{
+            MCP_GIT_DEFAULT_REPO = '${workspaceFolder}'
+            GIT_PYTHON_GIT_EXECUTABLE = $gitPath
+        }
+    }
+} else {
+    $mcpServerConfig = @{
+        command = $PythonExe
+        args = @("-m", "mcp_server_git")
+        env = @{
+            MCP_GIT_DEFAULT_REPO = '${workspaceFolder}'
+            GIT_PYTHON_GIT_EXECUTABLE = $gitPath
+            PYTHONPATH = (Join-Path $SourceDir "src\git\src")
+        }
+    }
+}
+
 $mcpConfig = @{
     servers = @{
-        git = @{
-            command = $GitServerExe
-            env = @{
-                MCP_GIT_DEFAULT_REPO = '${workspaceFolder}'
-                GIT_PYTHON_GIT_EXECUTABLE = $gitPath
-            }
-        }
+        git = $mcpServerConfig
     }
 } | ConvertTo-Json -Depth 10
 
