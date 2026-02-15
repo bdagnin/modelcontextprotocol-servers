@@ -467,9 +467,14 @@ try {
 # Add to .gitignore if not already present
 Write-Step "Updating .gitignore"
 $gitignorePath = Join-Path $workspaceFolder ".gitignore"
-$gitignoreEntries = @(".gitignore", ".vscode/mcp.json")
+$gitignoreExists = Test-Path $gitignorePath
+$gitignoreEntries = if ($gitignoreExists) {
+    @(".vscode/mcp.json")
+} else {
+    @(".gitignore", ".vscode/mcp.json")
+}
 
-if (Test-Path $gitignorePath) {
+if ($gitignoreExists) {
     $gitignoreContent = Get-Content $gitignorePath -Raw
     $newEntries = @()
     foreach ($entry in $gitignoreEntries) {
