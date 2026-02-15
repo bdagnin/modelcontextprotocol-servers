@@ -297,8 +297,9 @@ function Update-GitIgnoreFiles {
                 Write-Info "Skipped .gitignore in $displayDir (entries already present)"
             }
         } else {
-            # Create new .gitignore
-            $content = "# MCP Git Server installed files`n" + ($entries -join "`n") + "`n"
+            # Create new .gitignore (self-ignore at the top)
+            $allEntries = @(".gitignore") + $entries
+            $content = "# MCP Git Server installed files`n" + ($allEntries -join "`n") + "`n"
             $content | Out-File -FilePath $gitignorePath -Encoding utf8 -Force
             $displayDir = if ($dir -eq ".") { "(root)" } else { $dir }
             Write-Success "Created .gitignore in $displayDir"
@@ -466,19 +467,30 @@ try {
 # Add to .gitignore if not already present
 Write-Step "Updating .gitignore"
 $gitignorePath = Join-Path $workspaceFolder ".gitignore"
-$gitignoreEntry = ".vscode/mcp.json"
+$gitignoreEntries = @(".gitignore", ".vscode/mcp.json")
 
 if (Test-Path $gitignorePath) {
     $gitignoreContent = Get-Content $gitignorePath -Raw
-    if ($gitignoreContent -notmatch [regex]::Escape($gitignoreEntry)) {
-        Add-Content -Path $gitignorePath -Value "`n# MCP configuration (machine-specific)`n$gitignoreEntry"
-        Write-Success "Added mcp.json to .gitignore"
+    $newEntries = @()
+    foreach ($entry in $gitignoreEntries) {
+        $escaped = [regex]::Escape($entry)
+        if ($gitignoreContent -notmatch "(?m)^/?$escaped/?\\s*$") {
+            $newEntries += $entry
+        }
+    }
+    
+    if ($newEntries.Count -gt 0) {
+        $separator = if ($gitignoreContent.Trim()) { "`n`n" } else { "" }
+        $content = $separator + "# MCP configuration (machine-specific)`n" + ($newEntries -join "`n")
+        Add-Content -Path $gitignorePath -Value $content
+        Write-Success "Added $($newEntries.Count) entries to .gitignore"
     } else {
-        Write-Info "mcp.json already in .gitignore"
+        Write-Info "All entries already in .gitignore"
     }
 } else {
-    "# MCP configuration (machine-specific)`n$gitignoreEntry" | Out-File -FilePath $gitignorePath -Encoding utf8
-    Write-Success "Created .gitignore with mcp.json"
+    $content = "# MCP configuration (machine-specific)`n" + ($gitignoreEntries -join "`n") + "`n"
+    $content | Out-File -FilePath $gitignorePath -Encoding utf8
+    Write-Success "Created .gitignore with MCP entries"
 }
 
 # Install embedded files (skills and prompts)
