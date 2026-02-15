@@ -86,12 +86,7 @@ $embeddedFilesScript = @"
 "@
 
 foreach ($file in $allFiles) {
-    # Escape the content for PowerShell here-string
     $content = $file.Content
-    # Escape backticks and dollar signs
-    $content = $content -replace '`', '``'
-    $content = $content -replace '\$', '`$'
-    
     $embeddedFilesScript += @"
 
     @{
