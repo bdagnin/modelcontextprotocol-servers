@@ -105,6 +105,15 @@ class GitBranch(BaseModel):
     )
 
 
+class GitGrep(BaseModel):
+    repo_path: str
+    pattern: str
+    revision: Optional[str] = None
+    paths: Optional[list[str]] = None
+    ignore_case: bool = False
+    line_numbers: bool = True
+
+
 class GitTools(str, Enum):
     STATUS = "git_status"
     DIFF_UNSTAGED = "git_diff_unstaged"
@@ -117,6 +126,7 @@ class GitTools(str, Enum):
     CREATE_BRANCH = "git_create_branch"
     CHECKOUT = "git_checkout"
     SHOW = "git_show"
+    GREP = "git_grep"
 
     BRANCH = "git_branch"
 
@@ -257,6 +267,27 @@ def git_show(repo: git.Repo, revision: str) -> str:
             output.append(d.diff)
     return "".join(output)
 
+def git_grep(repo: git.Repo, pattern: str, revision: str | None = None, paths: list[str] | None = None, ignore_case: bool = False, line_numbers: bool = True) -> str:
+    args = []
+    if ignore_case:
+        args.append("-i")
+    if line_numbers:
+        args.append("-n")
+    
+    # We use -e to handle patterns starting with - safely
+    args.append("-e")
+    args.append(pattern)
+    
+    if revision:
+        args.append(revision)
+    
+    args.append("--")
+    
+    if paths:
+        args.extend(paths)
+        
+    return repo.git.grep(*args)
+
 def validate_repo_path(repo_path: Path, allowed_repository: Path | None) -> None:
     """Validate that repo_path is within the allowed repository path."""
     if allowed_repository is None:
@@ -377,6 +408,11 @@ async def serve(repository: Path | None) -> None:
                 name=GitTools.SHOW,
                 description="Shows the contents of a commit",
                 inputSchema=GitShow.model_json_schema(),
+            ),
+            Tool(
+                name=GitTools.GREP,
+                description="Search for a pattern in the repository",
+                inputSchema=GitGrep.model_json_schema(),
             ),
 
             Tool(
@@ -532,6 +568,20 @@ async def serve(repository: Path | None) -> None:
 
             case GitTools.SHOW:
                 result = git_show(repo, arguments["revision"])
+                return [TextContent(
+                    type="text",
+                    text=result
+                )]
+
+            case GitTools.GREP:
+                result = git_grep(
+                    repo,
+                    arguments["pattern"],
+                    arguments.get("revision"),
+                    arguments.get("paths"),
+                    arguments.get("ignore_case", False),
+                    arguments.get("line_numbers", True),
+                )
                 return [TextContent(
                     type="text",
                     text=result

@@ -23,6 +23,15 @@ When working in Agent mode, prefer MCP *tools* over terminal commands for git op
     - `target` can be a commit SHA, branch name, or ref, and is the ending point of the diff.
     - do not use unsupported range syntaxes like `SHA1..SHA2` or `SHA1...SHA2` as they may not be supported by the tool.
 
+### Searching Codebase
+- Use `git_grep` to search for patterns in the repository.
+  - Required: `pattern` string to search for.
+  - Optional:
+    - `revision`: specific commit/branch to search in (defaults to working directory).
+    - `paths`: list of file paths or directories to limit the search.
+    - `ignore_case`: boolean to enable case-insensitive search.
+    - `line_numbers`: boolean to show line numbers (defaults to true).
+
 ### Committing changes
 - Use `git_add` to stage specific files or changes for commit.
 - Use `git_commit` to create the commit.
