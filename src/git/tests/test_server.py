@@ -15,6 +15,7 @@ from mcp_server_git.server import (
     git_log,
     git_create_branch,
     git_show,
+    git_grep,
     validate_repo_path,
 )
 import shutil
