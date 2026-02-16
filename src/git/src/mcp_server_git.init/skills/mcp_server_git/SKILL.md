@@ -1,5 +1,5 @@
 ---
-name: Using the git MCP Tools
+name: mcp_server_git
 description: Instructions and best practices for using the git MCP tools effectively in this workspace.
 ---
 

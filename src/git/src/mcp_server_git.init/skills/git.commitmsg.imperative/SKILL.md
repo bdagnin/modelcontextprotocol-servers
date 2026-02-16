@@ -1,6 +1,6 @@
 ---
-name: Writing Imperative Commit Messages
-description: Guidelines for crafting effective commit messages in imperative mood.
+name: git.commitmsg.imperative
+description: Guidelines for crafting effective commit messages in imperative mood when using git to commit changes.
 ---
 
 # Writing Imperative Commit Messages
@@ -26,3 +26,4 @@ Use simple, imperative subject lines in present tense when crafting commit messa
 - `Added script` (Passive)
 - `fixing bug` (Gerund/Progressive)
 - `feat(core): update logic` (Prefixes not allowed)
+
