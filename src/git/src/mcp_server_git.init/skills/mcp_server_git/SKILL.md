@@ -33,3 +33,6 @@ When working in Agent mode, prefer MCP *tools* over terminal commands for git op
 - Use `git_checkout` to switch branches.
 
 Do not perform branching operations unless explicitly requested by the user. If you think that branching is necessary, ask the user for confirmation first.
+
+## Restrictions and Best Practices
+**Checkout Safety:** Be careful with `git_checkout` if there are unstaged changes. Use `git_status` first.
