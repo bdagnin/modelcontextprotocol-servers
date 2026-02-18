@@ -1,3 +1,5 @@
+import os
+import stat
 import pytest
 from pathlib import Path
 import git
@@ -15,9 +17,25 @@ from mcp_server_git.server import (
     git_log,
     git_create_branch,
     git_show,
+    git_grep,
     validate_repo_path,
 )
 import shutil
+
+
+def _force_rmtree(path: Path) -> None:
+    """Remove a directory tree, handling read-only files on Windows.
+
+    Git object files are written read-only by design; shutil.rmtree fails on
+    Windows unless we explicitly clear the read-only bit before unlinking.
+    """
+    def _on_error(func, fpath, exc_info):
+        # Clear read-only bit and retry
+        os.chmod(fpath, stat.S_IWRITE)
+        func(fpath)
+
+    shutil.rmtree(path, onerror=_on_error)
+
 
 @pytest.fixture
 def test_repository(tmp_path: Path):
@@ -30,7 +48,12 @@ def test_repository(tmp_path: Path):
 
     yield test_repo
 
-    shutil.rmtree(repo_path)
+    # Release file handles before cleanup (required on Windows).
+    # clear_cache() flushes GitPython's internal state; close() releases the
+    # git subprocess and any open file descriptors held by the Repo object.
+    test_repo.git.clear_cache()
+    test_repo.close()
+    _force_rmtree(repo_path)
 
 def test_git_checkout_existing_branch(test_repository):
     test_repository.git.branch("test-branch")
@@ -423,3 +446,63 @@ def test_git_checkout_rejects_malicious_refs(test_repository):
 
     # Cleanup
     malicious_ref_path.unlink()
+
+
+# Tests for merge_base diff (PR review workflow)
+
+def test_git_diff_merge_base(test_repository):
+    """merge_base=True should show only changes on the PR branch, not commits added to the
+    target branch after the PR branch diverged (equivalent to 'git diff base...target')."""
+    default_branch = test_repository.active_branch.name
+
+    # Simulate a PR branch forking off from default
+    test_repository.git.checkout("-b", "pr-branch")
+    Path(test_repository.working_dir / Path("pr_file.txt")).write_text("pr content")
+    test_repository.index.add(["pr_file.txt"])
+    test_repository.index.commit("pr commit")
+
+    # Simulate a new commit on the target branch after the PR branched off
+    test_repository.git.checkout(default_branch)
+    Path(test_repository.working_dir / Path("target_file.txt")).write_text("target-only content")
+    test_repository.index.add(["target_file.txt"])
+    test_repository.index.commit("target commit after fork")
+
+    # Without merge_base: diff includes target_file.txt (target moved ahead)
+    result_two_dot = git_diff(test_repository, "pr-branch", base=default_branch, merge_base=False)
+    assert "target_file.txt" in result_two_dot
+
+    # With merge_base: diff only shows pr_file.txt (changes on PR branch since fork)
+    result_three_dot = git_diff(test_repository, "pr-branch", base=default_branch, merge_base=True)
+    assert "pr_file.txt" in result_three_dot
+    assert "target_file.txt" not in result_three_dot
+
+
+def test_git_diff_merge_base_default_false(test_repository):
+    """merge_base defaults to False – behaviour is identical to the plain two-ref diff."""
+    default_branch = test_repository.active_branch.name
+
+    test_repository.git.checkout("-b", "feature-mb-default")
+    Path(test_repository.working_dir / Path("test.txt")).write_text("merge base default content")
+    test_repository.index.add(["test.txt"])
+    test_repository.index.commit("mb default commit")
+
+    # Explicit False and omitted should both work the same as the original two-dot diff
+    result_explicit = git_diff(test_repository, default_branch, merge_base=False)
+    result_implicit = git_diff(test_repository, default_branch)
+    assert result_explicit == result_implicit
+
+
+def test_git_diff_merge_base_without_base(test_repository):
+    """merge_base=True without a base ref falls back to a normal single-ref diff."""
+    default_branch = test_repository.active_branch.name
+
+    test_repository.git.checkout("-b", "feature-no-base")
+    Path(test_repository.working_dir / Path("test.txt")).write_text("no base content")
+    test_repository.index.add(["test.txt"])
+    test_repository.index.commit("no base commit")
+
+    test_repository.git.checkout(default_branch)
+
+    # No base supplied – merge_base flag is silently ignored, normal ref diff runs
+    result = git_diff(test_repository, "feature-no-base", merge_base=True)
+    assert "test.txt" in result
