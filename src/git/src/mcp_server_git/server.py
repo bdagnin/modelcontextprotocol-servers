@@ -39,6 +39,10 @@ class GitDiff(BaseModel):
     repo_path: str
     target: str
     base: Optional[str] = None
+    merge_base: bool = Field(
+        False,
+        description="When True and 'base' is provided, diff target against the merge base of base and target (equivalent to 'git diff base...target'). Useful for pull request review to see only the changes introduced by the PR branch, ignoring commits made to the target branch after the PR branch diverged."
+    )
     context_lines: int = DEFAULT_CONTEXT_LINES
     ignore_whitespace: bool = False
     paths: Optional[list[str]] = None
@@ -152,7 +156,7 @@ def git_diff_staged(repo: git.Repo, context_lines: int = DEFAULT_CONTEXT_LINES, 
         args.extend(["--", *paths])
     return repo.git.diff(*args)
 
-def git_diff(repo: git.Repo, target: str, base: str | None = None, context_lines: int = DEFAULT_CONTEXT_LINES, ignore_whitespace: bool = False, paths: list[str] | None = None) -> str:
+def git_diff(repo: git.Repo, target: str, base: str | None = None, merge_base: bool = False, context_lines: int = DEFAULT_CONTEXT_LINES, ignore_whitespace: bool = False, paths: list[str] | None = None) -> str:
     # Defense in depth: reject targets starting with '-' to prevent flag injection,
     # even if a malicious ref with that name exists (e.g. via filesystem manipulation)
     if target.startswith("-"):
@@ -169,7 +173,13 @@ def git_diff(repo: git.Repo, target: str, base: str | None = None, context_lines
         args.append("-w")
     
     if base:
-        args.extend([base, target])
+        if merge_base:
+            # Three-dot notation: diffs target against the merge base of base and target.
+            # This shows only changes introduced by target's branch, ignoring commits
+            # added to base after the branches diverged (ideal for PR review).
+            args.append(f"{base}...{target}")
+        else:
+            args.extend([base, target])
     else:
         args.append(target)
         
@@ -499,6 +509,7 @@ async def serve(repository: Path | None) -> None:
                     repo, 
                     arguments["target"], 
                     arguments.get("base"),
+                    arguments.get("merge_base", False),
                     arguments.get("context_lines", DEFAULT_CONTEXT_LINES),
                     arguments.get("ignore_whitespace", False),
                     arguments.get("paths")
