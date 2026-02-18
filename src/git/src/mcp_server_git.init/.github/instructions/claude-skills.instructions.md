@@ -4,10 +4,14 @@ description: Manual support for Claude-style SKILL.md instruction files in VS Co
 applyTo: "**/*"
 ---
 # Claude Skills Support
-This workspace uses a "skills" pattern (originally designed for Claude Code) to define specialized agent capabilities. 
-When working on tasks, you should actively look for and apply instructions from these files:
+This workspace uses a "skills" pattern (originally designed for Claude Code) to define specialized agent capabilities.
+To minimize context usage while maintaining high performance, follow this discovery and selective loading strategy:
 
-1. **Discovery**: Look in the root `skills/` directory. Each subfolder represents a skill.
-2. **Loading**: Read the `SKILL.md` file within each folder.
-3. **Application**: Apply the instructions, examples, and constraints found in `SKILL.md` if the task matches the skill's description (found in the YAML frontmatter).
-4. **Context**: These skills are self-contained and provide high-quality guidelines for repetitive or specific tasks.
+1. **Discovery & Filtering**:
+   - Use `list_dir` to see available skills in the root `skills/` directory.
+   - Use a text-search tool (e.g., `grep_search`) to read only the `description:` and `name:` lines from the `SKILL.md` files (using a search pattern like `skills/**/SKILL.md`).
+2. **Selective Loading**:
+   - Evaluate the descriptions against your current task and user request.
+   - Load the *full content* of a `SKILL.md` file using `read_file` ONLY if its description indicates it is directly applicable to your current goal.
+3. **Application**: Apply the specific instructions, examples, and constraints from the loaded skill to your work.
+4. **Efficiency**: Do not load multiple skill files at once unless they are all clearly relevant. This keeps the prompt focused and minimizes latency.
