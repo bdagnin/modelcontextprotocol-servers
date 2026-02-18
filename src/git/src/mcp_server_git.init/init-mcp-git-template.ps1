@@ -48,7 +48,7 @@ $PythonExe = Join-Path $PythonDir "python.exe"
 $PipExe = Join-Path $PythonDir "Scripts\pip.exe"
 # Start of enhanced mode vars
 $SourceDir = Join-Path $GitServerDir "source"
-$RepoZipUrl = "https://github.com/bdagnin/modelcontextprotocol-servers/archive/refs/heads/main.zip"
+$RepoGitUrl = "https://github.com/bdagnin/modelcontextprotocol-servers/archive/refs/heads/main.zip"
 # End of enhanced mode vars
 
 if ($Channel -eq 'stable') {
@@ -336,6 +336,20 @@ Write-Host @"
 
 "@ -ForegroundColor Cyan
 
+# Check for Git installation (required for config and enhanced mode)
+Write-Step "Checking for Git installation"
+$gitPath = Get-GitPath -CustomPath $GitPath
+if (-not $gitPath) {
+    Write-Host "  ✗ Could not locate Git executable" -ForegroundColor Red
+    exit 1
+}
+if (-not (Test-GitInstalled -gitExePath $gitPath)) {
+    Write-Host "  ✗ Git is not installed. Please install Git for Windows first." -ForegroundColor Red
+    Write-Host "    Download from: https://git-scm.com/download/win" -ForegroundColor Yellow
+    exit 1
+}
+Write-Success "Git found: $gitPath"
+
 # Check if already installed
 $InstallCheckPath = if ($Channel -eq 'stable') { $GitServerExe } else { $SourceDir }
 if ((Test-Path $InstallCheckPath) -and -not $Force) {
@@ -433,36 +447,21 @@ if (-not $SkipInstall) {
             exit 1
         }
     } else {
-        # Enhanced mode: Pull source from GitHub
-        Write-Step "Downloading enhanced source code"
-        $RepoZipPath = Join-Path $GitServerDir "repo.zip"
-        $ExtractDir = Join-Path $GitServerDir "temp_extract"
-        $UnzippedFolder = Join-Path $ExtractDir "modelcontextprotocol-servers-main"
+        # Enhanced mode: Clone source using Git
+        Write-Step "Cloning enhanced source code"
 
         try {
-            # Download
-            Write-Info "Downloading from: $RepoZipUrl"
-            Invoke-WebRequest -Uri $RepoZipUrl -OutFile $RepoZipPath -UseBasicParsing
-            
-            # Extract
-            if (Test-Path $ExtractDir) { Remove-Item $ExtractDir -Recurse -Force }
-            Expand-Archive -Path $RepoZipPath -DestinationPath $ExtractDir -Force
-            
-            # Locate the extracted root folder (it might not be exactly 'modelcontextprotocol-servers-main', 
-            # so we find the first directory in $ExtractDir)
-            $FoundRoot = Get-ChildItem -Path $ExtractDir -Directory | Select-Object -First 1
-            if (-not $FoundRoot) { throw "No directory found in zip archive" }
-            
-            # Move the content to our target location
             if (Test-Path $SourceDir) { Remove-Item $SourceDir -Recurse -Force }
-            # Rename the extracted folder to 'source' and move/keep in place
-            Move-Item -Path $FoundRoot.FullName -Destination $SourceDir
             
-            # Cleanup
-            if (Test-Path $RepoZipPath) { Remove-Item $RepoZipPath -Force }
-            if (Test-Path $ExtractDir) { Remove-Item $ExtractDir -Recurse -Force }
+            # Use git clone (depth 1 for speed)
+            Write-Info "Cloning from: $RepoGitUrl"
+            & $gitPath clone --depth 1 --branch main $RepoGitUrl $SourceDir
             
-            Write-Success "Source code downloaded to: $SourceDir"
+            if (-not (Test-Path $SourceDir)) {
+                throw "Clone failed - source directory not created"
+            }
+            
+            Write-Success "Source code cloned to: $SourceDir"
             
             # Install dependencies
             Write-Step "Installing dependencies"
@@ -479,20 +478,6 @@ if (-not $SkipInstall) {
 
     Write-Success "MCP Git Server installation complete!"
 }
-
-# Check for Git installation
-Write-Step "Checking for Git installation"
-$gitPath = Get-GitPath -CustomPath $GitPath
-if (-not $gitPath) {
-    Write-Host "  ✗ Could not locate Git executable" -ForegroundColor Red
-    exit 1
-}
-if (-not (Test-GitInstalled -gitExePath $gitPath)) {
-    Write-Host "  ✗ Git is not installed. Please install Git for Windows first." -ForegroundColor Red
-    Write-Host "    Download from: https://git-scm.com/download/win" -ForegroundColor Yellow
-    exit 1
-}
-Write-Success "Git found: $gitPath"
 
 # Create workspace MCP configuration
 Write-Step "Creating workspace MCP configuration"
