@@ -6,6 +6,10 @@ This directory contains `SKILL.md` files that define specialized capabilities fo
 
 A skill is a self-contained folder containing a `SKILL.md` file. This file provides instructions, examples, and guidelines that the AI loads dynamically to ensure consistent, high-quality execution of repeated tasks.
 
+### Multi-Platform Support
+- **Claude Code**: Automatically detects and loads skills from the `skills/` directory.
+- **GitHub Copilot (VS Code)**: Support can be shimmed via supplementary instructions in `.github/instructions/` that point to these files.
+
 Each skill consists of:
 1. **YAML Frontmatter**: Defines metadata like `name` and `description`.
 2. **Body**: Contains markdown instructions, examples, and guidelines.
