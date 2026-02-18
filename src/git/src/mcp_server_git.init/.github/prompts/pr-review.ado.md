@@ -1,6 +1,7 @@
 ---
 description: Review an AzureDevOps pull request in the context of its Notion task.
 tools: [
+  'vscode/askQuestions', 'read/readFile',
   'git_checkout', 'git_diff', 'git_log', 'git_show', 'git_status', 
   'notion-fetch', 'notion-get-comments', 'notion-search',
   'repo_get_pull_request_by_id', 'repo_get_repo_by_name_or_id', 'repo_list_pull_request_thread_comments', 'repo_list_pull_request_threads', 'repo_list_pull_requests_by_commits', 'repo_list_pull_requests_by_repo_or_project', 'repo_search_commits'

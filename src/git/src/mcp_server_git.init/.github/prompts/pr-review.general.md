@@ -1,6 +1,7 @@
 ---
 description: General instructions to review a pull request
 tools: [
+  'vscode/askQuestions', 'read/readFile',
   'git_checkout', 'git_diff', 'git_log', 'git_show', 'git_status', 
   'notion-fetch', 'notion-get-comments', 'notion-search'
   ]
