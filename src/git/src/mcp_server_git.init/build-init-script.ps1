@@ -31,6 +31,7 @@ $TemplateFile = Join-Path $ScriptDir "init-mcp-git-template.ps1"
 # Directories to embed
 $SkillsDir = Join-Path $ScriptDir "skills"
 $PromptsDir = Join-Path $ScriptDir ".github\prompts"
+$InstructionsDir = Join-Path $ScriptDir ".github\instructions"
 
 Write-Host "Building init-mcp-git script..." -ForegroundColor Cyan
 
@@ -75,7 +76,10 @@ $skillFiles = Get-FilesToEmbed -BaseDir $SkillsDir -RelativeRoot "skills"
 Write-Host "  Collecting files from .github/prompts/..." -ForegroundColor Gray
 $promptFiles = Get-FilesToEmbed -BaseDir $PromptsDir -RelativeRoot ".github/prompts"
 
-$allFiles = $skillFiles + $promptFiles
+Write-Host "  Collecting files from .github/instructions/..." -ForegroundColor Gray
+$instructionFiles = Get-FilesToEmbed -BaseDir $InstructionsDir -RelativeRoot ".github/instructions"
+
+$allFiles = $skillFiles + $promptFiles + $instructionFiles
 Write-Host "  Found $($allFiles.Count) files to embed" -ForegroundColor Gray
 
 # Build the embedded files PowerShell structure
