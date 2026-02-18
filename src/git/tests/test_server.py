@@ -1,3 +1,5 @@
+import os
+import stat
 import pytest
 from pathlib import Path
 import git
@@ -20,6 +22,21 @@ from mcp_server_git.server import (
 )
 import shutil
 
+
+def _force_rmtree(path: Path) -> None:
+    """Remove a directory tree, handling read-only files on Windows.
+
+    Git object files are written read-only by design; shutil.rmtree fails on
+    Windows unless we explicitly clear the read-only bit before unlinking.
+    """
+    def _on_error(func, fpath, exc_info):
+        # Clear read-only bit and retry
+        os.chmod(fpath, stat.S_IWRITE)
+        func(fpath)
+
+    shutil.rmtree(path, onerror=_on_error)
+
+
 @pytest.fixture
 def test_repository(tmp_path: Path):
     repo_path = tmp_path / "temp_test_repo"
@@ -31,7 +48,12 @@ def test_repository(tmp_path: Path):
 
     yield test_repo
 
-    shutil.rmtree(repo_path)
+    # Release file handles before cleanup (required on Windows).
+    # clear_cache() flushes GitPython's internal state; close() releases the
+    # git subprocess and any open file descriptors held by the Repo object.
+    test_repo.git.clear_cache()
+    test_repo.close()
+    _force_rmtree(repo_path)
 
 def test_git_checkout_existing_branch(test_repository):
     test_repository.git.branch("test-branch")
