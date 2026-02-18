@@ -7,8 +7,7 @@ This directory contains the automated setup script for the MCP Git Server along 
 - **`init-mcp-git.ps1`** - The main initialization script (compiled/generated - do not edit directly)
 - **`init-mcp-git-template.ps1`** - The source template for the initialization script
 - **`build-init-script.ps1`** - Builder script that compiles the template and embedded files into init-mcp-git.ps1
-- **`skills/`** - Copilot skill definitions (embedded into the compiled script)
-- **`.github/prompts/`** - Copilot prompt definitions (embedded into the compiled script)
+- **`resources/`** - Copilot skill and prompt definitions (embedded into the compiled script)
 
 ## For Users
 
@@ -29,7 +28,7 @@ This will:
 ### Making Changes
 
 1. **Edit the template**: Make changes to `init-mcp-git-template.ps1` (not the main script)
-2. **Edit embedded files**: Modify files in `skills/` or `.github/prompts/`
+2. **Edit embedded files**: Modify files in `resources/` (e.g., `resources/skills/` or `resources/.github/prompts/`)
 3. **Rebuild**: Run the builder script to compile changes into init-mcp-git.ps1:
    ```powershell
    .\build-init-script.ps1
@@ -40,7 +39,7 @@ This will:
 
 The build script (`build-init-script.ps1`):
 - Reads the template file (`init-mcp-git-template.ps1`)
-- Recursively collects all files from `skills/` and `.github/prompts/`
+- Recursively collects all files from `resources/`
 - Embeds file contents as PowerShell data structures
 - Outputs the compiled script directly to `init-mcp-git.ps1`
 
@@ -52,7 +51,7 @@ The compiled script:
 ### Adding New Files
 
 To add new skill or prompt files:
-1. Create the file in the appropriate directory (`skills/` or `.github/prompts/`)
+1. Create the file in the appropriate subdirectory of `resources/`
 2. Rebuild using `.\build-init-script.ps1`
 3. The new files will automatically be embedded and installed
 
