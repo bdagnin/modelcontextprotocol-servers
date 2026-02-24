@@ -1,5 +1,5 @@
 ---
-name: git.attribution
+name: git-attribution
 description: Guidelines for attributing commits correctly for traceability when using git to commit changes.
 ---
 

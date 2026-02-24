@@ -8,8 +8,8 @@ This workspace uses a "skills" pattern (originally designed for Claude Code) to 
 To minimize context usage while maintaining high performance, follow this discovery and selective loading strategy:
 
 1. **Discovery & Filtering**:
-   - Use `list_dir` to see available skills in the root `skills/` directory.
-   - Use a text-search tool (e.g., `grep_search`) to read only the `description:` and `name:` lines from the `SKILL.md` files (using a search pattern like `skills/**/SKILL.md`).
+   - Use `list_dir` to see available skills in the root `.agents/skills/` directory.
+   - Use a text-search tool (e.g., `grep_search`) to read only the `description:` and `name:` lines from the `SKILL.md` files (using a search pattern like `.agents/skills/**/SKILL.md`).
 2. **Selective Loading**:
    - Evaluate the descriptions against your current task and user request.
    - Load the *full content* of a `SKILL.md` file using `read_file` ONLY if its description indicates it is directly applicable to your current goal.
