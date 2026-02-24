@@ -1,5 +1,5 @@
 ---
-name: git.commitmsg.imperative
+name: git-commitmsg-imperative
 description: Guidelines for crafting effective commit messages in imperative mood when using git to commit changes.
 ---
 
