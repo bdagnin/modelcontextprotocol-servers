@@ -18,12 +18,17 @@ The single most important decision is whether content should be **always loaded*
 
 **Platform locations**:
 
-| Platform | Location | Format |
-|----------|----------|--------|
-| VS Code (Copilot) | `.github/instructions/*.instructions.md` | YAML frontmatter with `applyTo` glob |
-| VS Code (Copilot) | `.github/copilot-instructions.md` or `AGENTS.md` | Plain markdown |
-| Claude Code | `CLAUDE.md`, `.claude/CLAUDE.md` | Plain markdown with `@import` support |
-| Claude Code | `.claude/rules/*.md` | YAML frontmatter with `paths` glob |
+| Platform | Location | Format | Scope |
+|----------|----------|--------|-------|
+| **All platforms** | `AGENTS.md` (root or subdirs) | Plain markdown | Universal always-on |
+| VS Code (Copilot) | `.github/instructions/*.instructions.md` | YAML frontmatter with `applyTo` glob | VS Code only |
+| VS Code (Copilot) | `.github/copilot-instructions.md` | Plain markdown | VS Code only |
+| Claude Code | `CLAUDE.md`, `.claude/CLAUDE.md` | Plain markdown with `@import` support | Claude Code only |
+| Claude Code | `.claude/rules/*.md` | YAML frontmatter with `paths` glob | Claude Code only |
+| Cursor | `.cursor/rules/*.md` or `.cursor/rules/*.mdc` | YAML frontmatter with `globs`/`alwaysApply` | Cursor only |
+| Windsurf | `.windsurf/rules/*.md` | YAML frontmatter with activation modes | Windsurf only |
+
+> **Cross-platform recommendation**: Use `AGENTS.md` for always-on instructions that must work across all AI ecosystems. It is supported by VS Code, Cursor, Windsurf, and Claude Code. Use platform-specific files (`.github/instructions/`, `.cursor/rules/`, etc.) only when you need platform-specific features like glob-based scoping.
 
 **Use for content that is**:
 - A passive behavior that should always be active (coding style, commit conventions, tool preferences)
@@ -37,13 +42,17 @@ The single most important decision is whether content should be **always loaded*
 
 **Mechanism**: Agent reads only the `name` and `description` metadata at startup (~100 tokens). Full instructions load only when the task matches. Supports progressive disclosure with supporting files.
 
-**Platform locations** (all follow the Agent Skills standard):
+**Platform locations** (all follow the [Agent Skills](https://agentskills.io/) open standard):
 
-| Platform | Location |
-|----------|----------|
-| VS Code (Copilot) | `.github/skills/`, `.agents/skills/`, `.claude/skills/` |
-| Claude Code | `.claude/skills/`, `~/.claude/skills/` |
-| Cross-platform | Any of the above (standard is portable) |
+| Platform | Project Skills Location | Personal Skills Location |
+|----------|----------------------|------------------------|
+| VS Code (Copilot) | `.github/skills/`, `.agents/skills/`, `.claude/skills/` | `~/.copilot/skills/`, `~/.agents/skills/` |
+| Claude Code | `.claude/skills/` | `~/.claude/skills/` |
+| Cursor | Imported via Agent Skills toggle in settings | N/A (uses remote rules) |
+| Windsurf | `.windsurf/skills/` | `~/.codeium/windsurf/skills/` |
+| GitHub Copilot CLI | `.github/skills/`, `.agents/skills/` | N/A |
+
+> **Cross-platform recommendation**: Place skills in `.agents/skills/` for broadest compatibility. This location is recognized by VS Code and follows the Agent Skills standard. For Claude Code, also consider `.claude/skills/` for native discovery.
 
 **Use for content that is**:
 - Detailed reference or workflow documentation (diffing branches, release processes, audit checklists)
@@ -153,13 +162,29 @@ This means you can install many skills without consuming context. Only what's re
 
 ## Cross-Platform Compatibility Notes
 
-**Skills are portable**. The Agent Skills standard (`SKILL.md` format) works across VS Code, Claude Code, GitHub Copilot CLI, and many other tools. Write skills once, use everywhere.
+### Skills: Fully Portable
 
-**Instructions are platform-specific**. Always-on instruction files differ by platform:
-- VS Code uses `.github/instructions/*.instructions.md` with `applyTo` frontmatter
-- Claude Code uses `.claude/rules/*.md` with `paths` frontmatter, or `CLAUDE.md` with `@import` syntax
+The Agent Skills standard (`SKILL.md` format) is the **only fully portable mechanism** across AI ecosystems. It works across VS Code, Claude Code, Cursor, Windsurf, GitHub Copilot CLI, Amp, Roo Code, and others. Write skills once, use everywhere.
 
-**For maximum compatibility**, prefer skills for portable content and duplicate ambient instructions across platform formats only when needed.
+### Always-On Instructions: Platform-Specific (Except AGENTS.md)
+
+| Mechanism | VS Code | Claude Code | Cursor | Windsurf |
+|-----------|:-------:|:-----------:|:------:|:--------:|
+| `AGENTS.md` | Yes | Yes | Yes | Yes |
+| `.github/instructions/*.instructions.md` | Yes | No | No | No |
+| `.github/copilot-instructions.md` | Yes | No | No | No |
+| `CLAUDE.md` / `.claude/rules/` | Yes* | Yes | No | No |
+| `.cursor/rules/` | No | No | Yes | No |
+| `.windsurf/rules/` | No | No | No | Yes |
+
+\* VS Code supports `CLAUDE.md` for compatibility but it is primarily a Claude Code mechanism.
+
+### Recommendations
+
+- **For portable always-on instructions**: Use `AGENTS.md` in the workspace root. It is the only always-on mechanism supported by all major AI editors.
+- **For portable on-demand capabilities**: Use Agent Skills (`SKILL.md`) in `.agents/skills/` or `.github/skills/`.
+- **For platform-specific scoping** (e.g., glob-based rules): Use the platform's native rules directory alongside `AGENTS.md`.
+- **Avoid ambient instruction shims**: Do not create `.github/instructions/` files solely to teach agents about skills discovery. Modern agents (VS Code, Cursor, Windsurf, Claude Code) all have native Agent Skills support with progressive disclosure built in.
 
 ## Best Practices
 
@@ -174,11 +199,20 @@ This means you can install many skills without consuming context. Only what's re
 
 ## Reference Documentation
 
+### Standards
 - [Agent Skills Open Standard](https://agentskills.io/) -- Portable specification
 - [Agent Skills Specification](https://agentskills.io/specification) -- Detailed format reference
+- [Agent Skills Integration Guide](https://agentskills.io/integrate-skills) -- How agents implement skills
+
+### Platform Documentation
 - [VS Code: Agent Skills](https://code.visualstudio.com/docs/copilot/customization/agent-skills) -- VS Code integration
 - [VS Code: Custom Instructions](https://code.visualstudio.com/docs/copilot/customization/custom-instructions) -- Instruction file format
 - [Claude Code: Skills](https://code.claude.com/docs/en/skills) -- Claude Code skill features
 - [Claude Code: Memory](https://code.claude.com/docs/en/memory) -- CLAUDE.md and rules format
+- [Cursor: Rules](https://cursor.com/docs/context/rules) -- Cursor rules and Agent Skills import
+- [Windsurf: Skills](https://docs.windsurf.com/windsurf/cascade/skills) -- Windsurf skills support
+- [Windsurf: Memories & Rules](https://docs.windsurf.com/windsurf/cascade/memories) -- Windsurf rules format
+
+### Examples
 - [Example Skills Repository](https://github.com/anthropics/skills) -- Reference implementations
 - [Awesome Copilot](https://github.com/github/awesome-copilot) -- Community examples
