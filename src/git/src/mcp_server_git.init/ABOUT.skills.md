@@ -21,6 +21,13 @@ Create a new skill when you identify a task or workflow that:
 - Requires specific formatting, style, or procedure.
 - Benefits from specific examples to ensure correctness.
 - Can be encapsulated with clear input/output expectations.
+- **Is invoked on-demand** rather than needing to be active at all times.
+
+### Skills vs. Global Instructions
+It is crucial to understand the difference between a Skill and a Global Instruction to optimize context window usage and agent behavior:
+
+- **Skills (`.agents/skills/**/SKILL.md`)**: These are **selectively loaded** by the agent only when the user's request matches the skill's description. They are best for *on-demand* tasks, bulk operations, or specific workflows (e.g., "Audit this codebase", "Write a PR description").
+- **Global Instructions (`.github/instructions/*.md`)**: These are **always loaded** for every interaction (if `applyTo: "**/*"`). They are best for *passive, ambient behaviors* that should always be active in the background (e.g., "Always capture best practices", "Never use `var` in JavaScript").
 
 Examples include:
 - Generating commit messages in a specific project style.
@@ -62,3 +69,12 @@ skills/
 - **Use Examples**: Examples are often more powerful than abstract instructions.
 - **Iterate**: Refine the skill based on how the agent performs.
 - **Keep it Self-Contained**: Ideally, a skill should not depend on external context not provided in the `SKILL.md` or the immediate conversation.
+
+## Reference documentation
+
+- https://aka.ms/vscode-agent-skills
+- https://code.visualstudio.com/docs/copilot/customization/agent-skills
+- https://code.visualstudio.com/docs/copilot/customization/custom-instructions
+- https://code.claude.com/docs/en/skills
+- https://resources.anthropic.com/hubfs/The-Complete-Guide-to-Building-Skill-for-Claude.pdf?hsLang=en
+- https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview
