@@ -80,6 +80,127 @@ This optimizes for both context efficiency and completeness.
     |           +-- NO  --> Hybrid: split into ambient rules + on-demand skill
     +-- NO  --> On-demand skill
 
+## Modular Instruction Architecture (Preferred Pattern)
+
+For cross-platform always-on instructions, this project uses a **modular instruction** pattern that gives users fine-grained control over which behaviors are active.
+
+### Overview
+
+Instead of a single monolithic `AGENTS.md` or platform-specific instruction file, break independent instruction topics into separate `.instructions.md` module files stored in `.agents/instructions/`. An `AGENTS.md` shim in the workspace root provides the cross-platform discovery mechanism.
+
+### Directory Structure
+
+    workspace-root/
+    +-- AGENTS.md                                  # Cross-platform shim (always loaded)
+    +-- .agents/
+    |   +-- instructions/                          # Modular instruction modules
+    |   |   +-- git-attribution.instructions.md    # Commit attribution rules
+    |   |   +-- commit-style.instructions.md       # Commit message conventions
+    |   |   +-- prefer-mcp.instructions.md          # MCP tool preference
+    |   |   +-- ask-if-uncertain.instructions.md    # Uncertainty handling
+    |   +-- skills/                                # On-demand skills (Agent Skills standard)
+    |       +-- mcp-server-git/
+    |           +-- SKILL.md
+    +-- .github/
+        +-- instructions/                          # VS Code native (symlinks or copies)
+
+### How It Works: Tiered Loading
+
+The `AGENTS.md` shim uses a tiered approach — platform-native mechanisms provide reliable loading where available, with a universal fallback for everything else.
+
+**Tier 1: Platform-Native Loading (preferred where available)**
+
+| Platform | Native Mechanism | Configuration |
+|----------|-----------------|---------------|
+| VS Code | `chat.instructionsFilesLocations` setting | Add `".agents/instructions": true` to settings |
+| Claude Code | `@import` syntax in `CLAUDE.md` | Add `@.agents/instructions/module-name.instructions.md` per module |
+
+When native loading is configured, the platform loads instruction modules **automatically** without tool calls — they behave exactly like built-in always-on instructions.
+
+**Tier 2: AGENTS.md Soft Instruction (universal fallback)**
+
+| Platform | How It Works |
+|----------|--------------|
+| Cursor | Reads `AGENTS.md`, agent follows meta-instruction to read module files |
+| Windsurf | Same — `AGENTS.md` is loaded, agent reads modules via tools |
+| Other agents | Any agent that supports `AGENTS.md` can follow the instruction |
+
+The `AGENTS.md` shim directs the agent to discover and read modules from `.agents/instructions/`. This requires tool calls (e.g., `list_dir`, `read_file`) and is model-dependent in reliability, but functions as a universal cross-platform fallback.
+
+### AGENTS.md Shim Template
+
+The root `AGENTS.md` should contain:
+
+    # Workspace Agent Instructions
+
+    ## Modular Instructions
+
+    This workspace uses modular instruction files. On each interaction, read and
+    apply all `.instructions.md` files from `.agents/instructions/`.
+
+    Each file is an independent module covering one topic. List the directory to
+    discover available modules, then read and apply all that match the current task.
+
+    Modules use `.instructions.md` format with optional YAML frontmatter:
+    - `name`: Display name for the module
+    - `description`: When this module applies
+    - `applyTo`: Glob pattern for file-scoped activation (VS Code native)
+
+    ## Quick Reference
+
+    [Include any critical rules here that MUST be seen even if module
+    loading fails — keep this section minimal, under 10 lines.]
+
+### Instruction Module Format
+
+Each module is a self-contained `.instructions.md` file:
+
+    ---
+    name: Git Attribution
+    description: Rules for attributing commits to the AI agent for traceability.
+    applyTo: "**/*"
+    ---
+    # Git Attribution
+
+    When committing changes, attribute them to GitHub Copilot for traceability:
+    - Use `Co-authored-by: GitHub Copilot <copilot@github.com>` in commit messages.
+    ...
+
+The YAML frontmatter serves dual purposes:
+- **VS Code**: `applyTo` enables native glob-based activation when loaded via `chat.instructionsFilesLocations`
+- **All platforms**: `name` and `description` help agents understand the module's purpose
+
+### User Modularity
+
+The key benefit of this pattern is that users control which behaviors are active by managing files:
+
+- **Remove a module**: Delete `ask-if-uncertain.instructions.md` to disable that behavior
+- **Add a module**: Drop a new `.instructions.md` file into `.agents/instructions/`
+- **Review what's active**: `ls .agents/instructions/` shows all active modules at a glance
+- **Share modules**: Individual files can be copied between projects
+- **No editing required**: Adding or removing modules never requires editing `AGENTS.md` or any other file
+
+### VS Code Native Loading Configuration
+
+For VS Code users, configure `.vscode/settings.json` to load modules natively:
+
+    {
+      "chat.instructionsFilesLocations": {
+        ".github/instructions": true,
+        ".agents/instructions": true
+      }
+    }
+
+With this setting, VS Code scans `.agents/instructions/` for `*.instructions.md` files and applies them based on their `applyTo` patterns — no shim or tool calls needed.
+
+### Design Guidelines for Modules
+
+- **One topic per module**: Each file covers exactly one concern (attribution, commit style, tool preference, etc.)
+- **Self-contained**: A module should make sense on its own, without requiring other modules
+- **Short**: Each module should be under ~30 lines of actual rules. If longer, consider splitting or using a hybrid skill.
+- **Descriptive filename**: The filename (e.g., `git-attribution.instructions.md`) should clearly indicate what the module controls
+- **Include `applyTo`**: Always include `applyTo: "**/*"` for universal modules, or a specific glob for scoped ones, to enable VS Code native loading
+
 ## SKILL.md Format (Agent Skills Standard)
 
 ### Directory Structure
@@ -181,19 +302,23 @@ The Agent Skills standard (`SKILL.md` format) is the **only fully portable mecha
 
 ### Recommendations
 
-- **For portable always-on instructions**: Use `AGENTS.md` in the workspace root. It is the only always-on mechanism supported by all major AI editors.
+- **For portable always-on instructions**: Use the modular instruction pattern — `AGENTS.md` shim + `.agents/instructions/*.instructions.md` modules. This gives cross-platform compatibility with user modularity.
 - **For portable on-demand capabilities**: Use Agent Skills (`SKILL.md`) in `.agents/skills/` or `.github/skills/`.
-- **For platform-specific scoping** (e.g., glob-based rules): Use the platform's native rules directory alongside `AGENTS.md`.
-- **Avoid ambient instruction shims**: Do not create `.github/instructions/` files solely to teach agents about skills discovery. Modern agents (VS Code, Cursor, Windsurf, Claude Code) all have native Agent Skills support with progressive disclosure built in.
+- **For platform-native enhancement**: Configure `chat.instructionsFilesLocations` (VS Code) or `@import` (Claude Code) to load `.agents/instructions/` modules natively, eliminating the need for tool calls.
+- **Prefer `.agents/` over `.github/`**: The `.agents/` namespace is agent-ecosystem neutral. `.github/instructions/` is VS Code-only and should not be the primary location for cross-platform content. Use it only as a secondary/synced location if needed.
+- **Avoid monolithic instruction files**: Do not put all rules in a single `AGENTS.md` or `copilot-instructions.md`. Break them into independent modules so users can enable/disable individual behaviors.
 
 ## Best Practices
 
-- **Be specific**: Target a clear, narrow task per skill. One topic per instruction file.
+- **Be specific**: Target a clear, narrow task per skill. One topic per instruction module.
+- **One concern per module**: Each `.instructions.md` file should cover exactly one topic (e.g., git attribution, commit style, tool preference). This enables granular user control.
 - **Use examples**: Concrete good/bad examples are more effective than abstract rules.
-- **Size-appropriate**: Short passive rules -> instructions. Long reference material -> skills.
-- **Cross-reference**: Ambient instructions should link to related skills for deeper guidance.
+- **Size-appropriate**: Short passive rules -> instruction modules. Long reference material -> skills.
+- **Cross-reference**: Instruction modules should link to related skills for deeper guidance.
 - **Keep SKILL.md focused**: Under 500 lines. Move detailed docs to `references/` subdirectory.
-- **Descriptive names**: Both skill directory names and instruction file names should indicate their purpose.
+- **Descriptive filenames**: Use names like `git-attribution.instructions.md`, `prefer-mcp.instructions.md` — the filename should describe the behavior it controls.
+- **Always include `applyTo`**: For universal instruction modules, set `applyTo: "**/*"` to enable VS Code native loading.
+- **Keep AGENTS.md minimal**: The `AGENTS.md` shim should contain only the module-loading directive and a small critical-rules fallback. Actual rules belong in modules.
 - **Iterate**: Refine based on agent performance. If an instruction is too often ignored, it may need examples.
 - **Evaluate regularly**: Use the [evaluation prompt](.github/prompts/evaluate-skills-instructions.prompt.md) to audit placement periodically.
 
