@@ -1,17 +1,14 @@
 ---
-name: Claude Skills Support
-description: Manual support for Claude-style SKILL.md instruction files in VS Code.
+name: Agent Skills Support
+description: Guidance for discovering and using Agent Skills in this workspace.
 applyTo: "**/*"
 ---
-# Claude Skills Support
-This workspace uses a "skills" pattern (originally designed for Claude Code) to define specialized agent capabilities.
-To minimize context usage while maintaining high performance, follow this discovery and selective loading strategy:
+# Agent Skills Support
 
-1. **Discovery & Filtering**:
-   - Use `list_dir` to see available skills in the root `.agents/skills/` directory.
-   - Use a text-search tool (e.g., `grep_search`) to read only the `description:` and `name:` lines from the `SKILL.md` files (using a search pattern like `.agents/skills/**/SKILL.md`).
-2. **Selective Loading**:
-   - Evaluate the descriptions against your current task and user request.
-   - Load the *full content* of a `SKILL.md` file using `read_file` ONLY if its description indicates it is directly applicable to your current goal.
-3. **Application**: Apply the specific instructions, examples, and constraints from the loaded skill to your work.
-4. **Efficiency**: Do not load multiple skill files at once unless they are all clearly relevant. This keeps the prompt focused and minimizes latency.
+This workspace uses the [Agent Skills](https://agentskills.io/) open standard. Skills are stored in `.agents/skills/` and are discovered automatically by compatible agents.
+
+If your agent does not natively support Agent Skills progressive disclosure, follow this fallback strategy:
+
+1. **Discovery**: Scan `.agents/skills/` for `SKILL.md` files. Read only the `name:` and `description:` frontmatter fields.
+2. **Selective Loading**: Load the full `SKILL.md` body only when its description matches your current task.
+3. **Efficiency**: Do not load multiple skill files at once unless all are clearly relevant.

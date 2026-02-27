@@ -1,80 +1,184 @@
-# About This Directory: Agentic Skills
+# About This Directory: Agentic Skills and Instructions
 
-This directory contains `SKILL.md` files that define specialized capabilities for Claude (and other agentic systems) to enhance performance on specific tasks.
+This directory contains agent skill files (`SKILL.md`) and instruction files (`.instructions.md`) that define specialized capabilities for AI coding agents. These files are embedded into the init script and deployed to the target workspace root.
 
-## What is a Skill?
+## The Agent Skills Open Standard
 
-A skill is a self-contained folder containing a `SKILL.md` file. This file provides instructions, examples, and guidelines that the AI loads dynamically to ensure consistent, high-quality execution of repeated tasks.
+Agent Skills is an [open standard](https://agentskills.io/) for giving AI agents new capabilities. The format is portable across multiple tools including VS Code (GitHub Copilot), Claude Code, GitHub Copilot CLI, Amp, Roo Code, and others.
 
-### Multi-Platform Support
-- **Claude Code**: Automatically detects and loads skills from the `skills/` directory.
-- **GitHub Copilot (VS Code)**: Support can be shimmed via supplementary instructions in `.github/instructions/` that point to these files.
+Each skill is a self-contained directory with a `SKILL.md` entrypoint that agents discover, evaluate, and load on demand.
 
-Each skill consists of:
-1. **YAML Frontmatter**: Defines metadata like `name` and `description`.
-2. **Body**: Contains markdown instructions, examples, and guidelines.
+## Skills vs. Instructions: When to Use Each
 
-## When to Create a New Skill
+The single most important decision is whether content should be **always loaded** (ambient instruction) or **loaded on demand** (skill). Getting this wrong wastes context budget or causes agents to miss critical rules.
 
-Create a new skill when you identify a task or workflow that:
-- Is performed repeatedly.
-- Requires specific formatting, style, or procedure.
-- Benefits from specific examples to ensure correctness.
-- Can be encapsulated with clear input/output expectations.
-- **Is invoked on-demand** rather than needing to be active at all times.
+### Always-On Instructions (Ambient)
 
-### Skills vs. Global Instructions
-It is crucial to understand the difference between a Skill and a Global Instruction to optimize context window usage and agent behavior:
+**Mechanism**: Automatically loaded into every agent interaction. No tool calls needed.
 
-- **Skills (`.agents/skills/**/SKILL.md`)**: These are **selectively loaded** by the agent only when the user's request matches the skill's description. They are best for *on-demand* tasks, bulk operations, or specific workflows (e.g., "Audit this codebase", "Write a PR description").
-- **Global Instructions (`.github/instructions/*.md`)**: These are **always loaded** for every interaction (if `applyTo: "**/*"`). They are best for *passive, ambient behaviors* that should always be active in the background (e.g., "Always capture best practices", "Never use `var` in JavaScript").
+**Platform locations**:
 
-Examples include:
-- Generating commit messages in a specific project style.
-- Creating pull request descriptions.
-- Writing documentation for a specific module.
-- Handling specific error types or debugging workflows.
+| Platform | Location | Format |
+|----------|----------|--------|
+| VS Code (Copilot) | `.github/instructions/*.instructions.md` | YAML frontmatter with `applyTo` glob |
+| VS Code (Copilot) | `.github/copilot-instructions.md` or `AGENTS.md` | Plain markdown |
+| Claude Code | `CLAUDE.md`, `.claude/CLAUDE.md` | Plain markdown with `@import` support |
+| Claude Code | `.claude/rules/*.md` | YAML frontmatter with `paths` glob |
 
-## How to Create a Skill
+**Use for content that is**:
+- A passive behavior that should always be active (coding style, commit conventions, tool preferences)
+- Short enough that always-loading is negligible (~50 lines or fewer of actual rules)
+- Needed on nearly every interaction of its type (e.g., every commit, every code review)
+- Simple rule sets without complex workflows or extensive reference material
 
-1. **Create a Folder**: Name the folder descriptively (e.g., `git.commitmsg.imperative`). The folder name acts as the skill ID in some contexts.
-2. **Add `SKILL.md`**: Create a file named `SKILL.md` inside the folder.
-3. **Define Metadata**:
-   Add YAML frontmatter at the top of `SKILL.md`:
-   ```yaml
-   ---
-   name: [Human-readable name]
-   description: [Clear description of what the skill does]
-   ---
-   ```
-4. **Write Instructions**:
-   - Use clear, actionable language.
-   - Provide concrete examples (both good and bad if helpful).
-   - List guidelines or constraints.
-   - Use sections like `## Instructions`, `## Examples`, `## Guidelines`.
+**Examples**: "Use imperative commit messages", "Prefer MCP tools over terminal", "Always attribute commits to Copilot"
 
-## Directory Structure
+### On-Demand Skills (Loaded When Relevant)
 
-```
-skills/
-  ├── [skill-name]/
-  │     ├── SKILL.md
-  │     └── [optional-resources]
-  └── ...
-```
+**Mechanism**: Agent reads only the `name` and `description` metadata at startup (~100 tokens). Full instructions load only when the task matches. Supports progressive disclosure with supporting files.
+
+**Platform locations** (all follow the Agent Skills standard):
+
+| Platform | Location |
+|----------|----------|
+| VS Code (Copilot) | `.github/skills/`, `.agents/skills/`, `.claude/skills/` |
+| Claude Code | `.claude/skills/`, `~/.claude/skills/` |
+| Cross-platform | Any of the above (standard is portable) |
+
+**Use for content that is**:
+- Detailed reference or workflow documentation (diffing branches, release processes, audit checklists)
+- Longer than ~50 lines where always-loading would waste context
+- Task-specific procedures invoked infrequently
+- Content with extensive examples, step-by-step guides, or supporting files (scripts, templates)
+
+**Examples**: "Git MCP tool workflow reference", "PR review checklist", "Database migration procedure"
+
+### Hybrid Approach (Recommended for Complex Topics)
+
+When a topic has both short, always-needed rules AND detailed reference material:
+
+1. **Create a lightweight ambient instruction** with the essential rules (always loaded, ~20-40 lines)
+2. **Keep a skill file** with the detailed reference material (loaded on demand)
+3. **Cross-reference**: The instruction links to the skill for deeper guidance
+
+This optimizes for both context efficiency and completeness.
+
+### Quick Decision Flowchart
+
+    Is this content needed on nearly every interaction?
+    |-- YES --> Is it under ~50 lines of actual rules?
+    |           |-- YES --> Ambient instruction
+    |           +-- NO  --> Hybrid: split into ambient rules + on-demand skill
+    +-- NO  --> On-demand skill
+
+## SKILL.md Format (Agent Skills Standard)
+
+### Directory Structure
+
+    skill-name/
+    +-- SKILL.md           # Required entrypoint
+    +-- references/        # Optional: detailed docs loaded on demand
+    +-- scripts/           # Optional: executable scripts
+    +-- assets/            # Optional: templates, schemas, data
+    +-- examples/          # Optional: example inputs/outputs
+
+### Required Frontmatter
+
+    ---
+    name: skill-name          # Lowercase, hyphens only, max 64 chars, must match directory name
+    description: >-           # Max 1024 chars. Describe WHAT and WHEN.
+      Detailed description including keywords that help agents identify relevant tasks.
+    ---
+
+### Optional Frontmatter Fields
+
+| Field | Purpose |
+|-------|---------|
+| `license` | License name or reference to bundled LICENSE file |
+| `compatibility` | Environment requirements (e.g., "Requires git, docker") |
+| `metadata` | Arbitrary key-value pairs (author, version, etc.) |
+| `allowed-tools` | Space-delimited list of pre-approved tools (experimental) |
+| `argument-hint` | Hint for slash command arguments (e.g., `[filename] [options]`) |
+| `user-invocable` | `false` to hide from `/` menu; background knowledge only |
+| `disable-model-invocation` | `true` to prevent auto-loading; manual `/` invocation only |
+| `context` | `fork` to run in a subagent (Claude Code) |
+
+### Body Guidelines
+
+- Keep `SKILL.md` **under 500 lines**. Move detailed reference material to separate files.
+- Write clear, actionable instructions with concrete examples.
+- Reference supporting files with relative paths: `[reference guide](references/REFERENCE.md)`
+- The full body loads only when the skill is activated (~5000 tokens recommended max).
+
+### Name Validation Rules
+
+- Lowercase letters, numbers, and hyphens only (`a-z`, `0-9`, `-`)
+- Must not start or end with `-`
+- Must not contain consecutive hyphens (`--`)
+- Must match the parent directory name exactly
+
+## Instructions File Format (.instructions.md)
+
+### VS Code Format
+
+    ---
+    name: Display Name
+    description: Short description shown on hover
+    applyTo: "**/*"          # Glob pattern; use ** for all files
+    ---
+    # Instructions content in Markdown
+
+The `applyTo` glob controls when instructions activate. Use `**/*` for universal rules, or scope to specific file types (e.g., `**/*.py`). If omitted, instructions are not applied automatically.
+
+### Claude Code Rules Format (.claude/rules/*.md)
+
+    ---
+    paths:
+      - "src/**/*.ts"
+      - "tests/**/*.test.ts"
+    ---
+    # Rules content in Markdown
+
+Uses a `paths` array instead of `applyTo`. Defaults to all files when omitted.
+
+## Progressive Disclosure (How Agents Load Content)
+
+The Agent Skills standard defines a three-level loading system:
+
+1. **Level 1 -- Discovery** (~100 tokens): `name` and `description` from frontmatter are always loaded for all skills. This is lightweight and always in context.
+2. **Level 2 -- Instructions** (<5000 tokens recommended): The full `SKILL.md` body loads when the agent determines the skill is relevant or the user invokes it.
+3. **Level 3 -- Resources** (as needed): Supporting files (scripts, references, assets) load only when explicitly referenced during execution.
+
+This means you can install many skills without consuming context. Only what's relevant loads.
+
+## Cross-Platform Compatibility Notes
+
+**Skills are portable**. The Agent Skills standard (`SKILL.md` format) works across VS Code, Claude Code, GitHub Copilot CLI, and many other tools. Write skills once, use everywhere.
+
+**Instructions are platform-specific**. Always-on instruction files differ by platform:
+- VS Code uses `.github/instructions/*.instructions.md` with `applyTo` frontmatter
+- Claude Code uses `.claude/rules/*.md` with `paths` frontmatter, or `CLAUDE.md` with `@import` syntax
+
+**For maximum compatibility**, prefer skills for portable content and duplicate ambient instructions across platform formats only when needed.
 
 ## Best Practices
 
-- **Be Specific**: Target a clear, narrow task.
-- **Use Examples**: Examples are often more powerful than abstract instructions.
-- **Iterate**: Refine the skill based on how the agent performs.
-- **Keep it Self-Contained**: Ideally, a skill should not depend on external context not provided in the `SKILL.md` or the immediate conversation.
+- **Be specific**: Target a clear, narrow task per skill. One topic per instruction file.
+- **Use examples**: Concrete good/bad examples are more effective than abstract rules.
+- **Size-appropriate**: Short passive rules -> instructions. Long reference material -> skills.
+- **Cross-reference**: Ambient instructions should link to related skills for deeper guidance.
+- **Keep SKILL.md focused**: Under 500 lines. Move detailed docs to `references/` subdirectory.
+- **Descriptive names**: Both skill directory names and instruction file names should indicate their purpose.
+- **Iterate**: Refine based on agent performance. If an instruction is too often ignored, it may need examples.
+- **Evaluate regularly**: Use the [evaluation prompt](.github/prompts/evaluate-skills-instructions.prompt.md) to audit placement periodically.
 
-## Reference documentation
+## Reference Documentation
 
-- https://aka.ms/vscode-agent-skills
-- https://code.visualstudio.com/docs/copilot/customization/agent-skills
-- https://code.visualstudio.com/docs/copilot/customization/custom-instructions
-- https://code.claude.com/docs/en/skills
-- https://resources.anthropic.com/hubfs/The-Complete-Guide-to-Building-Skill-for-Claude.pdf?hsLang=en
-- https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview
+- [Agent Skills Open Standard](https://agentskills.io/) -- Portable specification
+- [Agent Skills Specification](https://agentskills.io/specification) -- Detailed format reference
+- [VS Code: Agent Skills](https://code.visualstudio.com/docs/copilot/customization/agent-skills) -- VS Code integration
+- [VS Code: Custom Instructions](https://code.visualstudio.com/docs/copilot/customization/custom-instructions) -- Instruction file format
+- [Claude Code: Skills](https://code.claude.com/docs/en/skills) -- Claude Code skill features
+- [Claude Code: Memory](https://code.claude.com/docs/en/memory) -- CLAUDE.md and rules format
+- [Example Skills Repository](https://github.com/anthropics/skills) -- Reference implementations
+- [Awesome Copilot](https://github.com/github/awesome-copilot) -- Community examples
