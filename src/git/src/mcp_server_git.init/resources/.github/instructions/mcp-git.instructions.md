@@ -15,11 +15,11 @@ Always prefer MCP tools (e.g., `mcp_git_git_status`, `mcp_git_git_diff`, `mcp_gi
 
 When committing changes, attribute them to the AI assistant for traceability:
 
-- **`Co-authored-by` trailer** (preferred): Add a `Co-authored-by:` line in the commit message body with your identity. Common examples:
+- **MCP tool commits** (preferred): Use available author parameters if the tool supports them. Otherwise, include a `Co-authored-by:` trailer in the message body.
+- **`--author` flag**: Use `git commit --author="<assistant-name> <assistant-email>"` when the `Co-authored-by` approach is not suitable.
+- **`Co-authored-by` trailer**: Add a `Co-authored-by:` line in the commit message body with your identity. Common examples:
   - `Co-authored-by: Claude <noreply@anthropic.com>`
   - `Co-authored-by: GitHub Copilot <noreply@github.com>`
-- **`--author` flag** (alternative): Use `git commit --author="<assistant-name> <assistant-email>"` when the `Co-authored-by` approach is not suitable.
-- **MCP tool commits**: Use available author parameters if the tool supports them. Otherwise, include a `Co-authored-by:` trailer in the message body.
 - When possible, include your model name for finer traceability (e.g., `Co-authored-by: Claude (claude-sonnet-4-20250514) <noreply@anthropic.com>`).
 
 ## Commit Message Style
