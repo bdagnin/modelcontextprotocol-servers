@@ -13,26 +13,11 @@ Always prefer MCP tools (e.g., `mcp_git_git_status`, `mcp_git_git_diff`, `mcp_gi
 
 ## Commit Attribution
 
-When committing changes, attribute them to the AI assistant for traceability:
-
-- **MCP tool commits** (preferred): Use available author parameters if the tool supports them. Otherwise, include a `Co-authored-by:` trailer in the message body.
-- **`--author` flag**: Use `git commit --author="<assistant-name> <assistant-email>"` when the `Co-authored-by` approach is not suitable.
-- **`Co-authored-by` trailer**: Add a `Co-authored-by:` line in the commit message body with your identity. Common examples:
-  - `Co-authored-by: Claude <noreply@anthropic.com>`
-  - `Co-authored-by: GitHub Copilot <noreply@github.com>`
-- When possible, include your model name for finer traceability (e.g., `Co-authored-by: Claude (claude-sonnet-4-20250514) <noreply@anthropic.com>`).
+When committing changes, refer to #file:../../.agents/skills/git-attribution/SKILL.md for detailed guidelines on attributing commits to the AI assistant for traceability.
 
 ## Commit Message Style
 
-Use **imperative mood** for commit messages:
-
-- Start with an action verb: Add, Fix, Refactor, Document, Update, Convert, etc.
-- Keep subject under 50 characters when possible.
-- No type prefixes or scope annotations (e.g., not `feat(core):`).
-- No trailing period.
-- Body should be concise and explain the "why" behind changes.
-- **Good**: `Add script to correlate blocking logs`, `Fix incorrect time conversion`
-- **Bad**: `Added script` (passive), `fixing bug` (gerund), `feat(core): update logic` (prefix)
+When committing changes, refer to #file:../../.agents/skills/git-commitmsg-imperative/SKILL.md for detailed guidelines on crafting effective commit messages in imperative mood.
 
 ## Detailed Git MCP Workflows
 
