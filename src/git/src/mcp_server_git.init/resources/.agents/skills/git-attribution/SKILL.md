@@ -16,8 +16,8 @@ When committing changes, attribute them to the AI assistant for traceability:
 2. **`--author` flag**: Use `git commit --author="<assistant-name> <assistant-email>"` when the `Co-authored-by` approach is not suitable.
 3. **Inline config**: Use git inline config to set the author information when not using the `commit` command, for example: `git -c user.name="<assistant-name>" -c user.email="<assistant-email>" commit -m "Your commit message"`.
 4. **`Co-authored-by` trailer**: Add a `Co-authored-by:` line in the commit message body with your identity. Common examples:
-  - `Co-authored-by: Claude <noreply@anthropic.com>`
-  - `Co-authored-by: GitHub Copilot <noreply@github.com>`
+    - `Co-authored-by: Claude <noreply@anthropic.com>`
+    - `Co-authored-by: GitHub Copilot <noreply@github.com>`
 
-- When possible, include your model designation and version for finer traceability (e.g., `Co-authored-by: Claude (claude-sonnet-4-20250514) <noreply@anthropic.com>`).
+    When possible, include your model designation and version for finer traceability (e.g., `Co-authored-by: Claude (claude-sonnet-4-20250514) <noreply@anthropic.com>`).
 
