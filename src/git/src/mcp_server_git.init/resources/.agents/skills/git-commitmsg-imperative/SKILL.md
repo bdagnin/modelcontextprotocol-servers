@@ -5,25 +5,12 @@ description: Guidelines for crafting effective commit messages in imperative moo
 
 # Writing Imperative Commit Messages
 
-Use simple, imperative subject lines in present tense when crafting commit messages.
+Use **imperative mood** for commit messages:
 
-## Guidelines
-- Start with an action verb: Add, Fix, Refactor, Document, Convert, Update, etc.
-- Keep under 50 characters when possible.
-- No type prefixes or scope annotations.
+- Start with an action verb: Add, Fix, Refactor, Document, Update, Convert, etc.
+- Keep subject under 50 characters when possible.
+- No type prefixes or scope annotations (e.g., not `feat(core):`).
 - No trailing period.
-- The commit message body should be concise and explain the "why" behind changes.
-
-## Examples
-
-### Good Subject Lines
-- `Add script to correlate blocking with sp_who2 logs`
-- `Fix incorrect field time conversion for controller status event`
-- `Document the event service structure`
-- `Refactor time conversion for controller events to use UtcToControllerTime method`
-
-### Bad Subject Lines
-- `Added script` (Passive)
-- `fixing bug` (Gerund/Progressive)
-- `feat(core): update logic` (Prefixes not allowed)
-
+- Body should be concise and explain the "why" behind changes.
+- **Good**: `Add script to correlate blocking logs`, `Fix incorrect time conversion`
+- **Bad**: `Added script` (passive), `fixing bug` (gerund), `feat(core): update logic` (prefix)

@@ -6,13 +6,18 @@ description: Guidelines for attributing commits correctly for traceability when 
 # Attribution when committing changes to Git
 
 When using git to commit changes, it is important to attribute the commits correctly for traceability.
-When creating a commit, you should set the author information to reflect that the changes were made by GitHub Copilot.
+When creating a commit, you should set the author information to reflect that the changes were made by an AI agent.
 
-If using commandline/terminal commands, you can set the author information inline with the commit command, for example: `git commit --author="GitHub Copilot <copilot@github.com>" -m "Your commit message"`.
+## Commit Attribution
 
-Alternatively, when not using the `commit` command, use git inline config to set the author information, for example: `git -c user.name="GitHub Copilot" -c user.email="copilot@github.com" commit -m "Your commit message"`.
+When committing changes, attribute them to the AI assistant for traceability:
 
-When possible, include your model designation and version in the author name for better traceability, e.g., `--author="GitHub Copilot (gpt-4.0) <copilot@github.com>"`, or `-c user.name="GitHub Copilot (gpt-4.0)"`.
+1. **MCP tool commits** (preferred): Use available author parameters if the tool supports them. Otherwise, include a `Co-authored-by:` trailer in the message body.
+2. **`--author` flag**: Use `git commit --author="<assistant-name> <assistant-email>"` when the `Co-authored-by` approach is not suitable.
+3. **Inline config**: Use git inline config to set the author information when not using the `commit` command, for example: `git -c user.name="<assistant-name>" -c user.email="<assistant-email>" commit -m "Your commit message"`.
+4. **`Co-authored-by` trailer**: Add a `Co-authored-by:` line in the commit message body with your identity. Common examples:
+    - `Co-authored-by: Claude <noreply@anthropic.com>`
+    - `Co-authored-by: GitHub Copilot <noreply@github.com>`
 
-If using MCP tools to commit, then use available parameters to set the author information. If such parameters are not available, do not fall back to commandline tools solely for this purpose, ensure that the commit message clearly indicates that the changes were made by GitHub Copilot for traceability, ; prefer using the co-author field in the commit message body, e.g., `Co-authored-by: GitHub Copilot <copilot@github.com>`.
+    When possible, include your model designation and version for finer traceability (e.g., `Co-authored-by: Claude (claude-sonnet-4-20250514) <noreply@anthropic.com>`).
 

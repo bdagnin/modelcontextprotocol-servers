@@ -1,11 +1,24 @@
 ---
-name: MCP Git Skills
-description: Supplementary instructions for project-specific git guidelines.
+name: Git Guidelines
+description: Ambient guidelines for git operations including commit attribution, message style, and MCP tool preference.
 applyTo: "**/*"
 ---
-# Git Skill Guidelines
-Whenever you use git tools or perform commits, you must adhere to the additional guidelines defined in the workspace skills directory:
+# Git Guidelines
 
-1. **Commit Attribution**: Follow the rules in [.agents/skills/git-attribution/SKILL.md](.agents/skills/git-attribution/SKILL.md) to ensure GitHub Copilot is correctly attributed as the author.
-2. **Commit Style**: Use the imperative mood as specified in [.agents/skills/git-commitmsg-imperative/SKILL.md](.agents/skills/git-commitmsg-imperative/SKILL.md).
-3. **Tool Usage**: Prefer MCP git tools over terminal commands per [.agents/skills/mcp-server-git/SKILL.md](.agents/skills/mcp-server-git/SKILL.md).
+These rules apply to ALL git operations. Follow them automatically without needing to load additional files.
+
+## Prefer MCP Tools
+
+Always prefer MCP tools (e.g., `mcp_git_git_status`, `mcp_git_git_diff`, `mcp_git_git_commit`) over terminal commands for git operations. MCP tools can be auto-approved for autonomous workflow, while terminal commands require manual user approval, causing interruptions. Only fall back to terminal `git` if the required functionality is completely missing from available MCP tools.
+
+## Commit Attribution
+
+When committing changes, refer to #file:../../.agents/skills/git-attribution/SKILL.md for detailed guidelines on attributing commits to the AI assistant for traceability.
+
+## Commit Message Style
+
+When committing changes, refer to #file:../../.agents/skills/git-commitmsg-imperative/SKILL.md for detailed guidelines on crafting effective commit messages in imperative mood.
+
+## Detailed Git MCP Workflows
+
+For complex git operations (diffing branches, searching code, multi-step workflows), load the on-demand skill: [.agents/skills/mcp-server-git/SKILL.md](../../.agents/skills/mcp-server-git/SKILL.md)
