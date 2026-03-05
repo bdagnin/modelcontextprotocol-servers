@@ -13,7 +13,6 @@ Always prefer MCP tools (e.g., `mcp_git_git_status`, `mcp_git_git_diff`, `mcp_gi
 
 ## Commit Attribution
 
-<!-- #file: auto-injects content in VS Code; these short skills are kept in .agents/skills/ for cross-platform discoverability but injected here so they're effectively ambient in VS Code. -->
 When committing changes, refer to #file:../../.agents/skills/git-attribution/SKILL.md for detailed guidelines on attributing commits to the AI assistant for traceability.
 
 ## Commit Message Style
@@ -22,5 +21,4 @@ When committing changes, refer to #file:../../.agents/skills/git-commitmsg-imper
 
 ## Detailed Git MCP Workflows
 
-<!-- This uses a markdown link (not #file:) intentionally — the MCP workflow skill is longer reference material meant to be loaded on-demand, not auto-injected into every interaction. -->
 For complex git operations (diffing branches, searching code, multi-step workflows), load the on-demand skill: [.agents/skills/mcp-server-git/SKILL.md](../../.agents/skills/mcp-server-git/SKILL.md)

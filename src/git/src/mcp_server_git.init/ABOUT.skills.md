@@ -92,8 +92,6 @@ Each AI platform has its own instruction mechanism (`.github/instructions/`, `.c
 
 ### Solution: Shared Modules with a Universal Shim
 
-> **Note**: The modular instruction architecture described below (`.agents/instructions/` modules, `AGENTS.md` shim) is the recommended target pattern. This workspace currently uses `.github/instructions/` with `#file:` references as a transitional approach. The patterns documented here are forward-looking guidance for new projects and future migration.
-
 This project uses a **modular instruction** pattern: shared instruction modules in a central location, with platform-native loading where available and `AGENTS.md` as a universal fallback.
 
 > **Convention notice**: The `.agents/instructions/` directory is a **project convention** for cross-platform modularity. It is not part of the Agent Skills specification or any published standard (the Agent Skills standard defines `.agents/skills/` but not `.agents/instructions/`). This convention keeps instruction modules in a platform-neutral location while allowing each platform to load them through its own mechanism.
