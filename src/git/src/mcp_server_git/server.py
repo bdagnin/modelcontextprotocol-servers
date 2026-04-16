@@ -10,6 +10,7 @@ from mcp.types import (
     Tool,
     ListRootsResult,
     RootsCapability,
+    ToolAnnotations,
 )
 from enum import Enum
 import git
@@ -213,6 +214,18 @@ def git_reset(repo: git.Repo, paths: list[str] | None = None) -> str:
     return "All staged changes reset"
 
 def git_log(repo: git.Repo, max_count: int = 10, revision_range: str | None = None, paths: list[str] | None = None, start_timestamp: str | None = None, end_timestamp: str | None = None) -> list[str]:
+    # Defense in depth: reject values starting with '-' to prevent flag injection
+    if start_timestamp and start_timestamp.startswith("-"):
+        raise ValueError(f"Invalid start_timestamp: '{start_timestamp}' - cannot start with '-'")
+    if end_timestamp and end_timestamp.startswith("-"):
+        raise ValueError(f"Invalid end_timestamp: '{end_timestamp}' - cannot start with '-'")
+    if revision_range and revision_range.startswith("-"):
+        raise ValueError(f"Invalid revision_range: '{revision_range}' - cannot start with '-'")
+    if paths:
+        for p in paths:
+            if p.startswith("-"):
+                raise ValueError(f"Invalid path: '{p}' - cannot start with '-'")
+
     kwargs = {'max_count': max_count}
     if start_timestamp:
         kwargs['since'] = start_timestamp
@@ -235,6 +248,11 @@ def git_log(repo: git.Repo, max_count: int = 10, revision_range: str | None = No
     return log
 
 def git_create_branch(repo: git.Repo, branch_name: str, base_branch: str | None = None) -> str:
+    # Defense in depth: reject names starting with '-' to prevent flag injection
+    if branch_name.startswith("-"):
+        raise BadName(f"Invalid branch name: '{branch_name}' - cannot start with '-'")
+    if base_branch and base_branch.startswith("-"):
+        raise BadName(f"Invalid base branch: '{base_branch}' - cannot start with '-'")
     if base_branch:
         base = repo.references[base_branch]
     else:
@@ -255,6 +273,10 @@ def git_checkout(repo: git.Repo, branch_name: str) -> str:
 
 
 def git_show(repo: git.Repo, revision: str) -> str:
+    # Defense in depth: reject revisions starting with '-' to prevent flag injection,
+    # even if a malicious ref with that name exists (e.g. via filesystem manipulation)
+    if revision.startswith("-"):
+        raise BadName(f"Invalid revision: '{revision}' - cannot start with '-'")
     commit = repo.commit(revision)
     output = [
         f"Commit: {commit.hexsha!r}\n"
@@ -278,6 +300,9 @@ def git_show(repo: git.Repo, revision: str) -> str:
     return "".join(output)
 
 def git_grep(repo: git.Repo, pattern: str, revision: str | None = None, paths: list[str] | None = None, ignore_case: bool = False, line_numbers: bool = True) -> str:
+    # Defense in depth: reject revisions starting with '-' to prevent flag injection
+    if revision and revision.startswith("-"):
+        raise BadName(f"Invalid revision: '{revision}' - cannot start with '-'")
     args = []
     if ignore_case:
         args.append("-i")
@@ -320,6 +345,12 @@ def validate_repo_path(repo_path: Path, allowed_repository: Path | None) -> None
 
 
 def git_branch(repo: git.Repo, branch_type: str, contains: str | None = None, not_contains: str | None = None) -> str:
+    # Defense in depth: reject values starting with '-' to prevent flag injection
+    if contains and contains.startswith("-"):
+        raise BadName(f"Invalid contains value: '{contains}' - cannot start with '-'")
+    if not_contains and not_contains.startswith("-"):
+        raise BadName(f"Invalid not_contains value: '{not_contains}' - cannot start with '-'")
+
     match contains:
         case None:
             contains_sha = (None,)
@@ -368,68 +399,144 @@ async def serve(repository: Path | None) -> None:
                 name=GitTools.STATUS,
                 description="Shows the working tree status",
                 inputSchema=GitStatus.model_json_schema(),
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    destructiveHint=False,
+                    idempotentHint=True,
+                    openWorldHint=False,
+                ),
             ),
             Tool(
                 name=GitTools.DIFF_UNSTAGED,
                 description="Shows changes in the working directory that are not yet staged",
                 inputSchema=GitDiffUnstaged.model_json_schema(),
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    destructiveHint=False,
+                    idempotentHint=True,
+                    openWorldHint=False,
+                ),
             ),
             Tool(
                 name=GitTools.DIFF_STAGED,
                 description="Shows changes that are staged for commit",
                 inputSchema=GitDiffStaged.model_json_schema(),
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    destructiveHint=False,
+                    idempotentHint=True,
+                    openWorldHint=False,
+                ),
             ),
             Tool(
                 name=GitTools.DIFF,
                 description="Shows differences between branches or commits",
                 inputSchema=GitDiff.model_json_schema(),
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    destructiveHint=False,
+                    idempotentHint=True,
+                    openWorldHint=False,
+                ),
             ),
             Tool(
                 name=GitTools.COMMIT,
                 description="Records changes to the repository",
                 inputSchema=GitCommit.model_json_schema(),
+                annotations=ToolAnnotations(
+                    readOnlyHint=False,
+                    destructiveHint=False,
+                    idempotentHint=False,
+                    openWorldHint=False,
+                ),
             ),
             Tool(
                 name=GitTools.ADD,
                 description="Adds file contents to the staging area",
                 inputSchema=GitAdd.model_json_schema(),
+                annotations=ToolAnnotations(
+                    readOnlyHint=False,
+                    destructiveHint=False,
+                    idempotentHint=True,
+                    openWorldHint=False,
+                ),
             ),
             Tool(
                 name=GitTools.RESET,
                 description="Unstages all staged changes",
                 inputSchema=GitReset.model_json_schema(),
+                annotations=ToolAnnotations(
+                    readOnlyHint=False,
+                    destructiveHint=True,
+                    idempotentHint=True,
+                    openWorldHint=False,
+                ),
             ),
             Tool(
                 name=GitTools.LOG,
                 description="Shows the commit logs",
                 inputSchema=GitLog.model_json_schema(),
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    destructiveHint=False,
+                    idempotentHint=True,
+                    openWorldHint=False,
+                ),
             ),
             Tool(
                 name=GitTools.CREATE_BRANCH,
                 description="Creates a new branch from an optional base branch",
                 inputSchema=GitCreateBranch.model_json_schema(),
+                annotations=ToolAnnotations(
+                    readOnlyHint=False,
+                    destructiveHint=False,
+                    idempotentHint=False,
+                    openWorldHint=False,
+                ),
             ),
             Tool(
                 name=GitTools.CHECKOUT,
                 description="Switches branches",
                 inputSchema=GitCheckout.model_json_schema(),
+                annotations=ToolAnnotations(
+                    readOnlyHint=False,
+                    destructiveHint=False,
+                    idempotentHint=False,
+                    openWorldHint=False,
+                ),
             ),
             Tool(
                 name=GitTools.SHOW,
                 description="Shows the contents of a commit",
                 inputSchema=GitShow.model_json_schema(),
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    destructiveHint=False,
+                    idempotentHint=True,
+                    openWorldHint=False,
+                ),
             ),
             Tool(
                 name=GitTools.GREP,
                 description="Search for a pattern in the repository",
                 inputSchema=GitGrep.model_json_schema(),
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    destructiveHint=False,
+                    idempotentHint=True,
+                    openWorldHint=False,
+                ),
             ),
-
             Tool(
                 name=GitTools.BRANCH,
                 description="List Git branches",
                 inputSchema=GitBranch.model_json_schema(),
-
+                annotations=ToolAnnotations(
+                    readOnlyHint=True,
+                    destructiveHint=False,
+                    idempotentHint=True,
+                    openWorldHint=False,
+                ),
             )
         ]
 
